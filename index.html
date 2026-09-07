@@ -1,238 +1,1338 @@
-<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dino Cyber Mayhem: Love & Lasers</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #f9fafb;
-            touch-action: none;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-        #gameCanvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        /* UI Overlays */
-        #ui-layer {
-            pointer-events: none; /* Let clicks pass through to canvas or specific buttons */
-        }
-        .control-btn {
-            pointer-events: auto;
-            background: #ffffff;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 12px;
-            font-weight: 600;
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@600;700&display=swap');
+
+        * {
             user-select: none;
-            color: #374151;
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
-        .control-btn:active {
-            background: #f3f4f6;
-            transform: translateY(1px);
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0f19;
+            color: #ffffff;
+            overflow: hidden;
         }
-        .space-theme .control-btn {
-            border-color: #4b5563;
-            color: #d1d5db;
-            background: #1f2937;
+
+        .font-pixel {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        /* Glassmorphism UI panel */
+        .glass-panel {
+            background: rgba(18, 24, 38, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Glowing text & button effects */
+        .glow-text-green { text-shadow: 0 0 10px #10b981, 0 0 20px #10b981; }
+        .glow-text-pink { text-shadow: 0 0 10px #ec4899, 0 0 20px #ec4899; }
+        .glow-text-yellow { text-shadow: 0 0 10px #eab308, 0 0 20px #eab308; }
+        
+        /* Custom Arcade Buttons */
+        .btn-arcade {
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+        }
+        .btn-arcade:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.5);
+        }
+
+        /* Touch control buttons styling */
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(4px);
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            active-bg: rgba(255, 255, 255, 0.4);
         }
     </style>
 </head>
-<body>
+<body class="w-screen h-screen flex flex-col items-center justify-center relative select-none">
 
-    <div class="flex w-full h-full font-sans text-gray-800">
-        <!-- Fake Sidebar -->
-        <div class="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col z-10 shadow-sm">
-            <div class="p-4 font-bold text-xl border-b border-gray-200 bg-blue-50 text-blue-900 flex items-center gap-2">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"></path></svg>
-                LMS Portal
-            </div>
-            <div class="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Assigned Modules</div>
-            <ul class="flex-1 overflow-y-auto">
-                <li class="px-4 py-3 border-b border-gray-100 text-gray-500 text-sm">CH 1: Introduction to Biology</li>
-                <li class="px-4 py-3 border-b border-gray-100 bg-blue-50 border-l-4 border-blue-600 font-medium text-blue-900 text-sm">CH 2: Mesozoic Era Simulation</li>
-                <li class="px-4 py-3 border-b border-gray-100 text-gray-500 text-sm">CH 3: Geological Formations</li>
-            </ul>
-        </div>
+    <!-- Main Game Canvas Container -->
+    <div id="game-container" class="relative w-full h-full max-w-6xl max-h-[800px] sm:rounded-2xl overflow-hidden glass-panel flex flex-col justify-center items-center shadow-2xl">
         
-        <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col h-full relative">
-            <!-- Fake Header -->
-            <header class="h-14 bg-white border-b border-gray-200 flex items-center px-4 justify-between z-10 shadow-sm">
-                <h1 class="text-lg font-semibold text-gray-700">Interactive Field Assessment</h1>
-                <div class="text-sm text-gray-500 hidden sm:block">ID: 2024-889-1</div>
-            </header>
+        <!-- Canvas Element -->
+        <canvas id="gameCanvas" class="w-full h-full block bg-black"></canvas>
 
-            <!-- Game Wrapper -->
-            <div id="gameWrapper" class="flex-1 relative overflow-hidden bg-gray-100">
-                <!-- Game Canvas -->
-                <canvas id="gameCanvas"></canvas>
-
-                <!-- UI Overlay -->
-                <div id="ui-layer" class="flex flex-col justify-between p-4 absolute inset-0 pointer-events-none">
-                    
-                    <!-- Top Stats -->
-                    <div class="flex justify-between items-start">
-                        <div id="stats" class="text-sm md:text-base font-mono bg-white bg-opacity-90 p-3 rounded border border-gray-300 shadow-sm text-gray-800 transition-colors duration-500">
-                            <div>Data Points: <span id="scoreVal" class="font-bold text-blue-600">0</span></div>
-                            <div>Environment: <span id="levelVal" class="font-bold">1 (Arid)</span></div>
-                            <div class="flex mt-1 items-center gap-2">
-                                <span>Integrity:</span> 
-                                <div id="healthBar" class="flex gap-1">
-                                    <!-- Boxes added via JS -->
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right text-xs md:text-sm font-mono bg-white bg-opacity-90 p-3 rounded border border-gray-300 shadow-sm text-gray-800 transition-colors duration-500" id="controls-hint">
-                            <p class="hidden md:block">Elevate: SPACE / UP</p>
-                            <p class="hidden md:block">Descend: DOWN</p>
-                            <p class="hidden md:block">Extract Sample: Z</p>
-                            <p class="hidden md:block">Seismic Scan: X</p>
-                        </div>
-                    </div>
-
-                    <!-- Start/Game Over Screen -->
-                    <div id="menuScreen" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-auto bg-gray-200 bg-opacity-95 z-50">
-                        <div class="bg-white p-8 rounded-lg shadow-xl text-center max-w-xl mx-4 border border-gray-300">
-                            <div class="mb-4 flex justify-center">
-                                <svg class="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            </div>
-                            <h1 id="menuTitle" class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Module 4 Assessment</h1>
-                            <p id="menuDesc" class="text-gray-600 mb-6 text-sm md:text-base">This interactive module requires you to collect environmental data while maintaining system integrity. Please review the operational manual before proceeding.</p>
-                            
-                            <button id="startBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded text-lg shadow transition-colors w-full border border-blue-800">
-                                Begin Assessment
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Mobile Controls (Bottom) -->
-                    <div class="flex justify-between w-full pb-2 md:hidden font-mono text-xs">
-                        <div class="flex gap-2">
-                            <button class="control-btn" id="btnDuck">DESCEND</button>
-                            <button class="control-btn" id="btnJump">ELEVATE</button>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="control-btn relative" id="btnShoot">
-                                EXTRACT
-                                <div id="shootCooldown" class="absolute bottom-0 left-0 h-1 bg-blue-500 w-full rounded" style="display:none"></div>
-                            </button>
-                            <button class="control-btn relative" id="btnBomb">
-                                SCAN
-                                <div id="bombCooldown" class="absolute bottom-0 left-0 h-1 bg-red-500 w-0 rounded"></div>
-                            </button>
-                        </div>
+        <!-- Top HUD Overlay -->
+        <div id="hud" class="absolute top-0 left-0 w-full p-4 flex justify-between items-start pointer-events-none z-10 hidden">
+            <!-- Left Stats: Health, Shield, Love Meter -->
+            <div class="flex flex-col gap-2 w-48 sm:w-64">
+                <!-- Dino Health Bar -->
+                <div class="flex items-center gap-2">
+                    <span class="font-pixel text-xs text-red-400">HP</span>
+                    <div class="w-full bg-gray-900/80 rounded-full h-4 border border-red-500/40 p-0.5 relative overflow-hidden">
+                        <div id="hp-bar" class="bg-gradient-to-r from-red-600 to-pink-500 h-full rounded-full transition-all duration-200" style="width: 100%;"></div>
                     </div>
                 </div>
+
+                <!-- Love Meter / Companion Boost Bar -->
+                <div class="flex items-center gap-2">
+                    <span class="font-pixel text-[10px] text-pink-400">LOVE</span>
+                    <div class="w-full bg-gray-900/80 rounded-full h-3 border border-pink-500/40 p-0.5 relative overflow-hidden">
+                        <div id="love-bar" class="bg-gradient-to-r from-pink-500 to-purple-400 h-full rounded-full transition-all duration-300" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Active Vehicle / Weapon Badge -->
+                <div class="flex items-center gap-2 mt-1">
+                    <span id="weapon-badge" class="bg-emerald-900/80 border border-emerald-400/50 text-emerald-300 font-pixel text-[10px] px-2 py-1 rounded">
+                        WEAPON: BLASTER
+                    </span>
+                    <span id="ammo-badge" class="bg-yellow-900/80 border border-yellow-400/50 text-yellow-300 font-pixel text-[10px] px-2 py-1 rounded">
+                        AMMO: ∞
+                    </span>
+                </div>
+            </div>
+
+            <!-- Center Level & Objectives Banner -->
+            <div class="flex flex-col items-center">
+                <div id="level-title" class="font-pixel text-yellow-400 text-sm sm:text-lg glow-text-yellow tracking-wider">
+                    STAGE 1: DESERT RUN
+                </div>
+                <div id="objective-text" class="text-xs text-gray-300 font-bold bg-black/50 px-3 py-1 rounded-full mt-1 border border-white/10">
+                    Survive & Watch out for Ultra Cacti!
+                </div>
+            </div>
+
+            <!-- Right Stats: Distance & Bombs & Score -->
+            <div class="flex flex-col items-end gap-1">
+                <div class="font-pixel text-cyan-400 text-sm sm:text-base">
+                    SCORE: <span id="score-val">00000</span>
+                </div>
+                <div class="font-pixel text-yellow-300 text-xs">
+                    DIST: <span id="dist-val">0</span>m
+                </div>
+                <!-- Bomb Count Badge -->
+                <div id="bomb-badge" class="flex items-center gap-1 bg-red-900/80 border border-red-500/50 text-red-200 font-pixel text-[10px] px-2 py-1 rounded mt-1">
+                    💣 BOMBS: <span id="bomb-val">3</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start / Title Screen Overlay -->
+        <div id="start-menu" class="absolute inset-0 bg-slate-950/90 flex flex-col justify-center items-center p-6 z-20 text-center">
+            <h1 class="font-pixel text-3xl sm:text-5xl text-emerald-400 mb-2 tracking-widest glow-text-green">
+                DINO CYBER MAYHEM
+            </h1>
+            <p class="font-pixel text-xs sm:text-sm text-pink-400 mb-6 glow-text-pink">
+                ♥ WITH LOVE, BLASTERS & ULTRA CACTI ♥
+            </p>
+
+            <div class="max-w-md bg-slate-900/90 border border-slate-700 p-4 rounded-xl mb-6 text-left text-sm text-gray-300 space-y-2">
+                <p class="text-emerald-300 font-bold">🎮 HOW TO PLAY:</p>
+                <ul class="list-disc list-inside space-y-1 text-xs">
+                    <li><b class="text-yellow-300">Space / Up / Jump Btn:</b> Jump / Fly Up</li>
+                    <li><b class="text-yellow-300">Down / S:</b> Duck / Fly Down</li>
+                    <li><b class="text-yellow-300">F / X / Attack Btn:</b> Shoot Lasers & Plasma</li>
+                    <li><b class="text-yellow-300">G / C / Bomb Btn:</b> Throw Explosive Bombs</li>
+                    <li><b class="text-yellow-300">E / Switch Btn:</b> Switch Weapons</li>
+                    <li><b class="text-pink-400">Dino-Woman:</b> Collect her heart gifts for shields & love boosts!</li>
+                    <li><b class="text-cyan-300">Vehicles:</b> Board Helicopter (Lvl 2) & Space Craft (Lvl 3)!</li>
+                </ul>
+            </div>
+
+            <button id="start-btn" class="btn-arcade font-pixel text-sm sm:text-base bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 px-8 py-4 rounded-xl font-black uppercase tracking-wider cursor-pointer border-2 border-emerald-300">
+                🚀 START ADVENTURE
+            </button>
+        </div>
+
+        <!-- Game Over / Level Clear Overlay -->
+        <div id="message-modal" class="absolute inset-0 bg-black/80 flex flex-col justify-center items-center p-6 z-30 hidden text-center">
+            <h2 id="modal-title" class="font-pixel text-2xl sm:text-4xl text-red-500 mb-2 glow-text-green">
+                GAME OVER
+            </h2>
+            <p id="modal-sub" class="font-pixel text-xs sm:text-sm text-gray-300 mb-6">
+                The Ultra Cacti overpowered you!
+            </p>
+
+            <div class="bg-slate-900/90 border border-slate-700 p-4 rounded-xl mb-6 min-w-[260px] font-pixel text-xs space-y-2">
+                <p class="text-gray-400">FINAL SCORE: <span id="final-score" class="text-cyan-400">0</span></p>
+                <p class="text-gray-400">MAX DISTANCE: <span id="final-dist" class="text-yellow-400">0</span>m</p>
+                <p class="text-pink-400">HEARTS COLLECTED: <span id="final-hearts">0</span> ♥</p>
+            </div>
+
+            <button id="restart-btn" class="btn-arcade font-pixel text-sm bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white px-8 py-3 rounded-xl cursor-pointer border-2 border-pink-300">
+                🔄 PLAY AGAIN
+            </button>
+        </div>
+
+        <!-- On-Screen Mobile Touch Overlay -->
+        <div id="touch-controls" class="absolute bottom-3 left-0 w-full px-4 flex justify-between items-end pointer-events-none z-10 sm:hidden">
+            <!-- Left Directional Pad (Up/Down) -->
+            <div class="flex flex-col gap-2 pointer-events-auto">
+                <button id="touch-up" class="touch-btn w-14 h-14 text-xl text-white active:bg-white/30">▲</button>
+                <button id="touch-down" class="touch-btn w-14 h-14 text-xl text-white active:bg-white/30">▼</button>
+            </div>
+
+            <!-- Middle Weapon Switch / Bomb Buttons -->
+            <div class="flex gap-2 pointer-events-auto mb-1">
+                <button id="touch-switch" class="touch-btn w-12 h-12 text-xs text-yellow-300 active:bg-yellow-500/40">🔄</button>
+                <button id="touch-bomb" class="touch-btn w-12 h-12 text-base text-red-400 active:bg-red-500/40">💣</button>
+            </div>
+
+            <!-- Right Action Buttons (Jump / Fire) -->
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="touch-fire" class="touch-btn w-16 h-16 text-lg text-emerald-300 border-emerald-400/50 active:bg-emerald-500/40">🔥</button>
+                <button id="touch-jump" class="touch-btn w-16 h-16 text-lg text-cyan-300 border-cyan-400/50 active:bg-cyan-500/40">🦘</button>
             </div>
         </div>
     </div>
 
-<script>
-/**
- * Game Engine & Logic
- */
-<!-- ... existing code ... -->
-```
+    <script>
+        /* Retro Sound Effects Generator using Web Audio API */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+            }
 
-```html:Paleontology Simulator:index.html
-<!-- ... existing code ... -->
-const menuTitle = document.getElementById('menuTitle');
-const menuDesc = document.getElementById('menuDesc');
-const startBtn = document.getElementById('startBtn');
-const bombCooldownUI = document.getElementById('bombCooldown');
-const gameWrapper = document.getElementById('gameWrapper');
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
 
-// Responsive Canvas
-let canvasWidth, canvasHeight;
-function resizeCanvas() {
-    if (!gameWrapper) return;
-    canvasWidth = gameWrapper.clientWidth;
-    canvasHeight = gameWrapper.clientHeight;
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+            playJump() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(450, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
 
-// --- Input Handling ---
-<!-- ... existing code ... -->
-```
+            playShoot() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
 
-```html:Paleontology Simulator:index.html
-<!-- ... existing code ... -->
-function updateUI() {
-    scoreVal.innerText = Math.floor(score);
-    levelVal.innerText = level === 1 ? '1 (Arid)' : '2 (Vacuum)';
-    
-    healthBar.innerHTML = '';
-    for(let i=0; i<player.maxHp; i++) {
-        healthBar.innerHTML += `<div class="w-4 h-4 rounded-sm ${i < player.hp ? 'bg-green-500' : 'bg-red-200 border border-red-300'}"></div>`;
-    }
-}
+            playExplosion() {
+                if (!this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 0.3;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+                filter.frequency.linearRampToValueAtTime(50, this.ctx.currentTime + 0.3);
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                noise.start();
+            }
 
-// --- Spawning Logic ---
-<!-- ... existing code ... -->
-            // Adjust UI styling for space
-            uiStats.classList.replace('text-gray-800', 'text-gray-100');
-            uiStats.classList.replace('bg-white', 'bg-gray-900');
-            controlsHint.classList.replace('text-gray-800', 'text-gray-100');
-            controlsHint.classList.replace('bg-white', 'bg-gray-900');
-            document.body.classList.add('space-theme');
-            
-            updateUI();
-<!-- ... existing code ... -->
-function startGame() {
-    state = 'PLAY';
-    level = 1;
-    score = 0;
-    GROUND_Y = canvasHeight * 0.75;
-    shipSpawned = false;
-    entities = [];
-    particles = [];
-    player.reset();
-    
-    uiStats.classList.replace('text-gray-100', 'text-gray-800');
-    uiStats.classList.replace('bg-gray-900', 'bg-white');
-    controlsHint.classList.replace('text-gray-100', 'text-gray-800');
-    controlsHint.classList.replace('bg-gray-900', 'bg-white');
-    document.body.classList.remove('space-theme');
+            playHeart() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                osc.frequency.setValueAtTime(1046.50, now + 0.24); // C6
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.35);
+            }
 
-    // Reset Menu Styling if it was Game Over
-    menuScreen.classList.replace('bg-gray-100', 'bg-gray-200');
-    menuTitle.classList.remove('text-red-700');
-    menuTitle.classList.add('text-gray-800');
-    startBtn.classList.replace('bg-gray-600', 'bg-blue-600');
-    startBtn.classList.replace('hover:bg-gray-700', 'hover:bg-blue-700');
-    startBtn.classList.replace('border-gray-800', 'border-blue-800');
+            playLaser() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(900, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            }
 
-    menuScreen.classList.add('hidden');
-    updateUI();
-}
+            playVehicleEngine() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(80, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.2);
+            }
+        }
 
-function gameOver() {
-    state = 'GAMEOVER';
-    menuScreen.classList.remove('hidden');
-    menuScreen.classList.replace('bg-gray-200', 'bg-gray-100');
-    menuTitle.innerText = "Assessment Concluded";
-    menuTitle.classList.remove('text-gray-800');
-    menuTitle.classList.add('text-red-700');
-    menuDesc.innerText = `Data collection ended. Total data points recovered: ${Math.floor(score)}.`;
-    startBtn.innerText = "Restart Assessment";
-    startBtn.classList.replace('bg-blue-600', 'bg-gray-600');
-    startBtn.classList.replace('hover:bg-blue-700', 'hover:bg-gray-700');
-    startBtn.classList.replace('border-blue-800', 'border-gray-800');
-}
+        const audio = new SoundFX();
 
-// Init
-startBtn.addEventListener('click', startGame);
-requestAnimationFrame(gameLoop);
-<!-- ... existing code ... -->
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Core Game Constants & State
+        let CANVAS_WIDTH = 960;
+        let CANVAS_HEIGHT = 540;
+
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            CANVAS_WIDTH = canvas.width;
+            CANVAS_HEIGHT = canvas.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        let gameState = 'START'; // START, PLAYING, LEVEL_TRANSITION, GAME_OVER, VICTORY
+        let currentLevel = 1;   // 1: Desert Ground, 2: Sky Chopper, 3: Space UFO
+        let distance = 0;
+        let score = 0;
+        let heartsCollected = 0;
+        let screenShake = 0;
+
+        // Input Keys Tracker
+        const keys = {
+            Up: false,
+            Down: false,
+            Left: false,
+            Right: false,
+            Jump: false,
+            Fire: false,
+            Bomb: false,
+            Switch: false
+        };
+
+        
+        // Weapons Config
+        const WEAPONS = [
+            { name: 'BLASTER', ammo: Infinity, fireRate: 12, damage: 15, color: '#10b981', type: 'single' },
+            { name: 'SHOTGUN', ammo: 30, fireRate: 25, damage: 12, color: '#f59e0b', type: 'spread' },
+            { name: 'PLASMA CANNON', ammo: 20, fireRate: 18, damage: 35, color: '#06b6d4', type: 'plasma' },
+            { name: 'ROCKET LAUNCHER', ammo: 10, fireRate: 35, damage: 80, color: '#ef4444', type: 'rocket' }
+        ];
+
+        class Player {
+            constructor() {
+                this.x = 100;
+                this.y = 300;
+                this.w = 55;
+                this.h = 60;
+                this.vx = 0;
+                this.vy = 0;
+                this.grounded = false;
+                this.ducking = false;
+                this.hp = 100;
+                this.maxHp = 100;
+                this.loveMeter = 0;
+                this.bombs = 3;
+                this.currentWeaponIdx = 0;
+                this.fireCooldown = 0;
+                this.shieldActive = false;
+                this.shieldTimer = 0;
+                this.inVehicle = false;
+                this.vehicleType = null; // 'HELI' or 'UFO'
+            }
+
+            reset() {
+                this.x = 100;
+                this.y = CANVAS_HEIGHT - 120;
+                this.vx = 0;
+                this.vy = 0;
+                this.hp = 100;
+                this.loveMeter = 0;
+                this.bombs = 3;
+                this.currentWeaponIdx = 0;
+                this.inVehicle = false;
+                this.vehicleType = null;
+                WEAPONS[1].ammo = 30;
+                WEAPONS[2].ammo = 20;
+                WEAPONS[3].ammo = 10;
+            }
+
+            get currentWeapon() {
+                return WEAPONS[this.currentWeaponIdx];
+            }
+
+            update() {
+                const groundY = CANVAS_HEIGHT - 100;
+
+                // Fire cooldown decrease
+                if (this.fireCooldown > 0) this.fireCooldown--;
+                if (this.shieldTimer > 0) {
+                    this.shieldTimer--;
+                    if (this.shieldTimer <= 0) this.shieldActive = false;
+                }
+
+                // Level-specific physics
+                if (currentLevel === 1) {
+                    // Ground Runner Physics
+                    this.h = this.ducking ? 35 : 60;
+
+                    if (!this.grounded) {
+                        this.vy += 0.7; // Gravity
+                    }
+
+                    this.y += this.vy;
+
+                    if (this.y + this.h >= groundY) {
+                        this.y = groundY - this.h;
+                        this.vy = 0;
+                        this.grounded = true;
+                    } else {
+                        this.grounded = false;
+                    }
+
+                    // Gentle horizontal position adjustment
+                    if (keys.Left && this.x > 50) this.x -= 4;
+                    if (keys.Right && this.x < CANVAS_WIDTH / 2) this.x += 4;
+
+                } else if (currentLevel === 2 || currentLevel === 3) {
+                    // Flying Physics (Helicopter or Space UFO)
+                    const speed = currentLevel === 2 ? 5 : 6;
+                    
+                    if (keys.Up && this.y > 40) this.y -= speed;
+                    if (keys.Down && this.y < CANVAS_HEIGHT - 120) this.y += speed;
+                    if (keys.Left && this.x > 40) this.x -= speed;
+                    if (keys.Right && this.x < CANVAS_WIDTH - 100) this.x += speed;
+
+                    // Idle hover motion
+                    this.y += Math.sin(Date.now() * 0.005) * 0.4;
+                }
+            }
+
+            jump() {
+                if (currentLevel === 1 && this.grounded && !this.ducking) {
+                    this.vy = -14.5;
+                    this.grounded = false;
+                    audio.playJump();
+                }
+            }
+
+            switchWeapon() {
+                this.currentWeaponIdx = (this.currentWeaponIdx + 1) % WEAPONS.length;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Shield Aura Effect
+                if (this.shieldActive) {
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(this.w / 2, this.h / 2, this.w * 0.75, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                if (this.inVehicle && this.vehicleType === 'HELI') {
+                    // Draw Helicopter around Dino
+                    drawHelicopter(0, 0, this.w, this.h);
+                } else if (this.inVehicle && this.vehicleType === 'UFO') {
+                    // Draw Space Saucer around Dino
+                    drawSpaceUFO(0, 0, this.w, this.h);
+                } else {
+                    // Draw T-Rex Dino Sprite
+                    drawDinosaur(this.ducking, this.grounded, this.currentWeapon.color);
+                }
+
+                ctx.restore();
+            }
+        }
+
+
+        // Draw Dinosaur Sprite on Canvas
+        function drawDinosaur(ducking, grounded, weaponColor) {
+            // Body
+            ctx.fillStyle = '#10b981'; // Cyber Emerald Green
+            ctx.shadowColor = '#10b981';
+            ctx.shadowBlur = 6;
+
+            if (ducking) {
+                // Ducking Dino shape
+                ctx.fillRect(0, 15, 55, 20);
+                // Head
+                ctx.fillRect(40, 5, 20, 18);
+                // Eye
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(52, 8, 4, 4);
+                // Tail
+                ctx.fillStyle = '#047857';
+                ctx.fillRect(-12, 18, 15, 8);
+            } else {
+                // Standing / Running Dino
+                ctx.fillRect(10, 15, 30, 30); // Torso
+                // Head
+                ctx.fillRect(25, 0, 25, 22);
+                // Eye / Visor
+                ctx.fillStyle = '#fef08a';
+                ctx.fillRect(40, 5, 8, 5);
+                // Snout / Teeth
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(46, 15, 4, 4);
+                // Tail
+                ctx.fillStyle = '#047857';
+                ctx.beginPath();
+                ctx.moveTo(10, 20);
+                ctx.lineTo(-12, 35);
+                ctx.lineTo(10, 35);
+                ctx.fill();
+
+                // Animated Legs
+                ctx.fillStyle = '#065f46';
+                const legAnim = grounded ? Math.sin(Date.now() * 0.02) * 8 : 0;
+                ctx.fillRect(15 + legAnim, 45, 8, 15);
+                ctx.fillRect(28 - legAnim, 45, 8, 15);
+            }
+
+            // Weapon attached to hand
+            ctx.fillStyle = weaponColor;
+            ctx.fillRect(32, ducking ? 20 : 22, 18, 7);
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(28, ducking ? 22 : 24, 6, 8); // Grip
+            ctx.shadowBlur = 0;
+        }
+
+        // Draw Helicopter Vehicle Sprite
+        function drawHelicopter(x, y, w, h) {
+            // Rotor Blade Animation
+            const rotorAngle = (Date.now() * 0.05) % Math.PI;
+
+            ctx.fillStyle = '#38bdf8'; // Sky Blue Metal
+            ctx.fillRect(-15, 0, 75, 30); // Body
+            ctx.fillRect(30, -5, 25, 20); // Cockpit Window
+
+            // Tail rotor
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(-35, 5, 25, 8);
+            ctx.fillRect(-40, 0, 6, 18);
+
+            // Main Spinning Blade
+            ctx.strokeStyle = '#e0f2fe';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(22 - Math.cos(rotorAngle) * 45, -10);
+            ctx.lineTo(22 + Math.cos(rotorAngle) * 45, -10);
+            ctx.stroke();
+
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(20, -10, 5, 10); // Blade mast
+
+            // Landing Skids
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-5, 32, 60, 4);
+
+            // Mini Dino pilot peek inside
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(38, 2, 12, 12);
+            // Dino-Woman co-pilot peek
+            ctx.fillStyle = '#ec4899';
+            ctx.fillRect(24, 2, 10, 10);
+        }
+
+        // Draw Space UFO Vehicle Sprite
+        function drawSpaceUFO(x, y, w, h) {
+            // Glass Dome
+            ctx.fillStyle = 'rgba(168, 85, 247, 0.6)';
+            ctx.beginPath();
+            ctx.arc(25, 5, 22, Math.PI, 0);
+            ctx.fill();
+
+            // Main Saucer Body
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.ellipse(25, 18, 45, 14, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Glowing Pulsing Saucer Lights
+            const pulse = (Math.sin(Date.now() * 0.01) + 1) * 0.5;
+            ctx.fillStyle = `rgba(250, 204, 21, ${0.4 + pulse * 0.6})`;
+            for (let i = -25; i <= 25; i += 12) {
+                ctx.beginPath();
+                ctx.arc(25 + i, 20, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Dino Pilots inside Dome
+            ctx.fillStyle = '#10b981';
+            ctx.fillRect(20, -5, 10, 10);
+            ctx.fillStyle = '#ec4899';
+            ctx.fillRect(12, -3, 8, 8);
+        }
+
+        // Draw Dino-Woman Character (Rescue / Power-Up Companion)
+        class DinoWoman {
+            constructor() {
+                this.x = CANVAS_WIDTH + 200;
+                this.y = CANVAS_HEIGHT - 110;
+                this.active = false;
+                this.timer = 0;
+            }
+
+            spawn() {
+                this.active = true;
+                this.x = CANVAS_WIDTH + 50;
+                this.y = currentLevel === 1 ? CANVAS_HEIGHT - 120 : CANVAS_HEIGHT / 2;
+            }
+
+            update() {
+                if (!this.active) return;
+                this.x -= currentLevel === 1 ? 2.5 : 1.5;
+
+                // Periodically drop Heart Power-Ups
+                this.timer++;
+                if (this.timer % 120 === 0) {
+                    heartsList.push(new HeartPowerUp(this.x, this.y - 10));
+                }
+
+                if (this.x < -80) {
+                    this.active = false;
+                }
+            }
+
+            draw() {
+                if (!this.active) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Dino-Woman Body
+                ctx.fillStyle = '#ec4899'; // Hot Pink
+                ctx.shadowColor = '#ec4899';
+                ctx.shadowBlur = 8;
+                ctx.fillRect(0, 10, 30, 30);
+                // Head
+                ctx.fillRect(15, -5, 22, 20);
+                // Cute Bow on Head
+                ctx.fillStyle = '#f43f5e';
+                ctx.beginPath();
+                ctx.arc(20, -8, 6, 0, Math.PI * 2);
+                ctx.arc(28, -8, 6, 0, Math.PI * 2);
+                ctx.fill();
+                // Eye
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(28, -1, 5, 5);
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(30, 0, 2, 2);
+
+                // Heart effect overhead
+                ctx.fillStyle = '#f43f5e';
+                ctx.font = '16px sans-serif';
+                ctx.fillText('♥ LOVE ♥', -5, -20);
+
+                ctx.restore();
+            }
+        }
+
+
+        class HeartPowerUp {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.w = 20;
+                this.h = 20;
+                this.vy = Math.sin(Date.now() * 0.01) * 1.5;
+            }
+
+            update() {
+                this.x -= 2.5;
+                this.y += Math.sin(Date.now() * 0.005) * 0.8;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.fillStyle = '#f43f5e';
+                ctx.shadowColor = '#f43f5e';
+                ctx.shadowBlur = 10;
+                ctx.font = '20px sans-serif';
+                ctx.fillText('💖', this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, vx, vy, type, damage, isPlayer = true) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.type = type;
+                this.damage = damage;
+                this.isPlayer = isPlayer;
+                this.radius = type === 'rocket' ? 6 : (type === 'plasma' ? 8 : 4);
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+
+            draw() {
+                ctx.save();
+                if (this.type === 'rocket') {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.shadowColor = '#ef4444';
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(this.x, this.y - 3, 14, 6);
+                } else if (this.type === 'plasma') {
+                    ctx.fillStyle = '#06b6d4';
+                    ctx.shadowColor = '#06b6d4';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.type === 'enemy_laser') {
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.shadowColor = '#f43f5e';
+                    ctx.shadowBlur = 8;
+                    ctx.fillRect(this.x, this.y - 2, 12, 4);
+                } else {
+                    ctx.fillStyle = this.isPlayer ? '#10b981' : '#eab308';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+
+        class Enemy {
+            constructor(type) {
+                this.type = type; // 'CACTUS', 'ULTRA_CACTUS', 'PTERO', 'SPACE_CACTUS', 'BOSS_UFO'
+                this.x = CANVAS_WIDTH + 60;
+                this.w = 40;
+                this.h = 60;
+                this.hp = type === 'ULTRA_CACTUS' ? 45 : (type === 'BOSS_UFO' ? 350 : 20);
+                this.maxHp = this.hp;
+                this.shootTimer = 0;
+
+                if (type === 'CACTUS' || type === 'ULTRA_CACTUS') {
+                    this.y = CANVAS_HEIGHT - 100 - this.h;
+                } else if (type === 'PTERO' || type === 'SPACE_CACTUS') {
+                    this.y = 80 + Math.random() * (CANVAS_HEIGHT - 220);
+                } else if (type === 'BOSS_UFO') {
+                    this.x = CANVAS_WIDTH - 150;
+                    this.y = 120;
+                    this.w = 110;
+                    this.h = 80;
+                }
+            }
+
+            update() {
+                // Movement
+                if (this.type !== 'BOSS_UFO') {
+                    this.x -= (currentLevel === 1 ? 6 : (currentLevel === 2 ? 5 : 4));
+                } else {
+                    // Boss UFO hover path
+                    this.y += Math.sin(Date.now() * 0.003) * 2;
+                }
+
+                // Shooting Logic for ULTRA CACTUS and BOSS
+                if (this.type === 'ULTRA_CACTUS' || this.type === 'BOSS_UFO' || this.type === 'SPACE_CACTUS') {
+                    this.shootTimer++;
+                    if (this.shootTimer >= (this.type === 'BOSS_UFO' ? 45 : 90)) {
+                        this.shootTimer = 0;
+                        this.shootAtPlayer();
+                    }
+                }
+            }
+
+            shootAtPlayer() {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const angle = Math.atan2(dy, dx);
+                const speed = 6;
+
+                projectiles.push(new Projectile(
+                    this.x,
+                    this.y + this.h / 2,
+                    Math.cos(angle) * speed,
+                    Math.sin(angle) * speed,
+                    'enemy_laser',
+                    15,
+                    false
+                ));
+                audio.playLaser();
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.type === 'CACTUS') {
+                    // Standard Desert Cactus
+                    ctx.fillStyle = '#15803d';
+                    ctx.fillRect(15, 0, 10, 60);
+                    ctx.fillRect(5, 15, 10, 20);
+                    ctx.fillRect(25, 25, 10, 18);
+                } else if (this.type === 'ULTRA_CACTUS') {
+                    // Ultra Shooter Cactus with glowing red eyes & cannon arm
+                    ctx.fillStyle = '#166534';
+                    ctx.shadowColor = '#ef4444';
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(15, 0, 14, 60);
+                    ctx.fillRect(2, 15, 14, 25);
+                    ctx.fillRect(28, 20, 14, 25);
+
+                    // Red Glowing Turret Eyes
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(18, 8, 8, 8);
+
+                    // Cyber Spines
+                    ctx.strokeStyle = '#f59e0b';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(0, 0, 40, 60);
+                } else if (this.type === 'PTERO') {
+                    // Flying Cyber Pterodactyl
+                    ctx.fillStyle = '#a855f7';
+                    const wing = Math.sin(Date.now() * 0.01) * 15;
+                    ctx.beginPath();
+                    ctx.moveTo(20, 15);
+                    ctx.lineTo(-10, 15 - wing);
+                    ctx.lineTo(10, 25);
+                    ctx.lineTo(50, 15 - wing);
+                    ctx.closePath();
+                    ctx.fill();
+                    // Head
+                    ctx.fillStyle = '#7e22ce';
+                    ctx.fillRect(35, 10, 15, 8);
+                } else if (this.type === 'BOSS_UFO') {
+                    // Alien Mothership Boss
+                    ctx.fillStyle = '#dc2626';
+                    ctx.shadowColor = '#dc2626';
+                    ctx.shadowBlur = 15;
+                    ctx.beginPath();
+                    ctx.ellipse(55, 40, 50, 25, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glowing Shield / Eyes
+                    ctx.fillStyle = '#fef08a';
+                    ctx.fillRect(35, 30, 40, 12);
+
+                    // Health bar over boss
+                    ctx.fillStyle = '#374151';
+                    ctx.fillRect(10, -15, 90, 8);
+                    ctx.fillStyle = '#ef4444';
+                    ctx.fillRect(10, -15, (this.hp / this.maxHp) * 90, 8);
+                }
+
+                ctx.restore();
+            }
+        }
+
+
+        const player = new Player();
+        const dinoWoman = new DinoWoman();
+        let enemies = [];
+        let projectiles = [];
+        let heartsList = [];
+        let particles = [];
+        let floatingTexts = [];
+
+        // Particles Effect Engine
+        function addExplosion(x, y, color = '#ef4444', count = 15) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: Math.random() * 5 + 2,
+                    color,
+                    alpha: 1,
+                    life: 25
+                });
+            }
+        }
+
+        function addFloatingText(text, x, y, color = '#ffffff') {
+            floatingTexts.push({ text, x, y, vy: -1.5, alpha: 1, color });
+        }
+
+
+        function checkLevelProgression() {
+            // Level 1 -> Level 2 transition at distance 600
+            if (currentLevel === 1 && distance >= 600) {
+                currentLevel = 2;
+                player.inVehicle = true;
+                player.vehicleType = 'HELI';
+                document.getElementById('level-title').innerText = "STAGE 2: SKY CHOPPER ASSAULT";
+                document.getElementById('objective-text').innerText = "Fly & Destroy Air Cacti Drones & Pterodactyls!";
+                addFloatingText("HELICOPTER BOARDED! SKY MODE!", CANVAS_WIDTH / 2 - 100, 150, '#38bdf8');
+                audio.playVehicleEngine();
+            }
+            // Level 2 -> Level 3 transition at distance 1500
+            else if (currentLevel === 2 && distance >= 1500) {
+                currentLevel = 3;
+                player.inVehicle = true;
+                player.vehicleType = 'UFO';
+                document.getElementById('level-title').innerText = "STAGE 3: COSMIC UFO ODYSSEY";
+                document.getElementById('objective-text').innerText = "Zero-G Space Battle! Defeat Alien Boss Saucer!";
+                addFloatingText("SPACE CRAFT ACTIVATED! ZERO-G!", CANVAS_WIDTH / 2 - 120, 150, '#a855f7');
+                // Spawn Boss UFO
+                enemies.push(new Enemy('BOSS_UFO'));
+            }
+        }
+
+        // Draw Environment Backgrounds (Desert -> Sky -> Deep Space)
+        function drawBackground() {
+            if (currentLevel === 1) {
+                // Prehistoric Desert Palette
+                const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+                grad.addColorStop(0, '#0f172a');
+                grad.addColorStop(0.6, '#451a03');
+                grad.addColorStop(1, '#78350f');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // Sun
+                ctx.fillStyle = 'rgba(251, 146, 60, 0.4)';
+                ctx.beginPath();
+                ctx.arc(CANVAS_WIDTH - 150, 120, 60, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Ground Terrain
+                ctx.fillStyle = '#b45309';
+                ctx.fillRect(0, CANVAS_HEIGHT - 100, CANVAS_WIDTH, 100);
+                ctx.fillStyle = '#d97706';
+                ctx.fillRect(0, CANVAS_HEIGHT - 100, CANVAS_WIDTH, 6);
+
+            } else if (currentLevel === 2) {
+                // Sky Sunset Gradient
+                const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+                grad.addColorStop(0, '#0284c7');
+                grad.addColorStop(0.5, '#38bdf8');
+                grad.addColorStop(1, '#f43f5e');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // Dynamic Clouds
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+                const cloudOffset = (Date.now() * 0.05) % CANVAS_WIDTH;
+                ctx.beginPath();
+                ctx.arc(CANVAS_WIDTH - cloudOffset, 100, 40, 0, Math.PI * 2);
+                ctx.arc(CANVAS_WIDTH - cloudOffset + 40, 90, 50, 0, Math.PI * 2);
+                ctx.arc(CANVAS_WIDTH - cloudOffset + 80, 100, 35, 0, Math.PI * 2);
+                ctx.fill();
+
+            } else if (currentLevel === 3) {
+                // Deep Outer Space
+                ctx.fillStyle = '#030712';
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // Twinkling Stars
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 40; i++) {
+                    const sx = (i * 37 + Date.now() * 0.02) % CANVAS_WIDTH;
+                    const sy = (i * 97) % CANVAS_HEIGHT;
+                    const size = (i % 3) + 1;
+                    ctx.fillRect(sx, sy, size, size);
+                }
+
+                // Nebula aura
+                ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+                ctx.beginPath();
+                ctx.arc(200, 200, 180, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+
+        function handleShooting() {
+            if (keys.Fire && player.fireCooldown <= 0) {
+                const weapon = player.currentWeapon;
+
+                if (weapon.ammo <= 0) {
+                    addFloatingText("NO AMMO!", player.x, player.y - 10, '#ef4444');
+                    player.fireCooldown = 20;
+                    return;
+                }
+
+                if (weapon.ammo !== Infinity) weapon.ammo--;
+                player.fireCooldown = weapon.fireRate;
+
+                // Fire Sound
+                audio.playShoot();
+
+                const spawnX = player.x + player.w;
+                const spawnY = player.y + player.h / 2;
+
+                if (weapon.type === 'single') {
+                    projectiles.push(new Projectile(spawnX, spawnY, 12, 0, 'bullet', weapon.damage));
+                } else if (weapon.type === 'spread') {
+                    projectiles.push(new Projectile(spawnX, spawnY, 11, -2, 'bullet', weapon.damage));
+                    projectiles.push(new Projectile(spawnX, spawnY, 12, 0, 'bullet', weapon.damage));
+                    projectiles.push(new Projectile(spawnX, spawnY, 11, 2, 'bullet', weapon.damage));
+                } else if (weapon.type === 'plasma') {
+                    projectiles.push(new Projectile(spawnX, spawnY, 14, 0, 'plasma', weapon.damage));
+                } else if (weapon.type === 'rocket') {
+                    projectiles.push(new Projectile(spawnX, spawnY, 10, 0, 'rocket', weapon.damage));
+                }
+            }
+
+            // Bomb Throwing
+            if (keys.Bomb) {
+                keys.Bomb = false; // Trigger once per key press
+                if (player.bombs > 0) {
+                    player.bombs--;
+                    audio.playExplosion();
+                    screenShake = 15;
+
+                    // Clear screen of non-boss enemy bullets and damage all enemies
+                    projectiles = projectiles.filter(p => p.isPlayer);
+                    enemies.forEach(e => {
+                        e.hp -= 90;
+                        addExplosion(e.x, e.y, '#f59e0b', 20);
+                    });
+                    addFloatingText("💣 BOMB NUKED SCREEN!", CANVAS_WIDTH / 2 - 80, 200, '#ef4444');
+                }
+            }
+        }
+
+
+        let enemySpawnTimer = 0;
+
+        function spawnEnemies() {
+            enemySpawnTimer++;
+            const spawnInterval = Math.max(40, 110 - Math.floor(distance / 20));
+
+            if (enemySpawnTimer >= spawnInterval) {
+                enemySpawnTimer = 0;
+
+                if (currentLevel === 1) {
+                    const isUltra = Math.random() < 0.45;
+                    enemies.push(new Enemy(isUltra ? 'ULTRA_CACTUS' : 'CACTUS'));
+                } else if (currentLevel === 2) {
+                    const isPtero = Math.random() < 0.5;
+                    enemies.push(new Enemy(isPtero ? 'PTERO' : 'ULTRA_CACTUS'));
+                } else if (currentLevel === 3) {
+                    if (!enemies.some(e => e.type === 'BOSS_UFO')) {
+                        enemies.push(new Enemy('SPACE_CACTUS'));
+                    }
+                }
+            }
+
+            // Dino-Woman periodic spawn
+            if (Math.random() < 0.003 && !dinoWoman.active) {
+                dinoWoman.spawn();
+            }
+        }
+
+        function checkCollisions() {
+            // Projectiles vs Enemies
+            projectiles.forEach((p, pIdx) => {
+                if (!p.isPlayer) return;
+
+                enemies.forEach((e, eIdx) => {
+                    if (p.x > e.x && p.x < e.x + e.w && p.y > e.y && p.y < e.y + e.h) {
+                        e.hp -= p.damage;
+                        addExplosion(p.x, p.y, p.type === 'plasma' ? '#06b6d4' : '#ef4444', 8);
+
+                        if (p.type !== 'plasma') projectiles.splice(pIdx, 1);
+
+                        if (e.hp <= 0) {
+                            score += e.maxHp * 10;
+                            addExplosion(e.x + e.w / 2, e.y + e.h / 2, '#f59e0b', 20);
+                            audio.playExplosion();
+
+                            if (e.type === 'BOSS_UFO') {
+                                triggerVictory();
+                            } else {
+                                enemies.splice(eIdx, 1);
+                            }
+                        }
+                    }
+                });
+            });
+
+            // Enemy bullets / Enemies vs Player
+            enemies.forEach((e, eIdx) => {
+                // Body collision with player
+                if (player.x < e.x + e.w && player.x + player.w > e.x &&
+                    player.y < e.y + e.h && player.y + player.h > e.y) {
+                    
+                    if (!player.shieldActive) {
+                        player.hp -= 20;
+                        screenShake = 10;
+                        addFloatingText("-20 HP", player.x, player.y - 10, '#ef4444');
+                        if (e.type !== 'BOSS_UFO') enemies.splice(eIdx, 1);
+                    }
+                }
+            });
+
+            // Enemy Laser bullets vs Player
+            projectiles.forEach((p, pIdx) => {
+                if (p.isPlayer) return;
+
+                if (p.x > player.x && p.x < player.x + player.w &&
+                    p.y > player.y && p.y < player.y + player.h) {
+
+                    projectiles.splice(pIdx, 1);
+                    if (!player.shieldActive) {
+                        player.hp -= p.damage;
+                        screenShake = 8;
+                        addFloatingText(`-${p.damage} HP`, player.x, player.y - 10, '#ef4444');
+                    }
+                }
+            });
+
+            // Heart Power-Ups Pickup
+            heartsList.forEach((h, hIdx) => {
+                if (player.x < h.x + h.w && player.x + player.w > h.x &&
+                    player.y < h.y + h.h && player.y + player.h > h.y) {
+
+                    heartsList.splice(hIdx, 1);
+                    heartsCollected++;
+                    player.hp = Math.min(100, player.hp + 25);
+                    player.loveMeter = Math.min(100, player.loveMeter + 35);
+                    player.shieldActive = true;
+                    player.shieldTimer = 180; // 3 seconds shield
+                    audio.playHeart();
+                    addFloatingText("LOVE SHIELD ACTIVE! +25 HP", player.x, player.y - 20, '#ec4899');
+                }
+            });
+        }
+
+
+        function updateHUD() {
+            document.getElementById('hp-bar').style.width = `${Math.max(0, player.hp)}%`;
+            document.getElementById('love-bar').style.width = `${player.loveMeter}%`;
+            document.getElementById('weapon-badge').innerText = `WEAPON: ${player.currentWeapon.name}`;
+            document.getElementById('ammo-badge').innerText = `AMMO: ${player.currentWeapon.ammo === Infinity ? '∞' : player.currentWeapon.ammo}`;
+            document.getElementById('score-val').innerText = String(score).padStart(5, '0');
+            document.getElementById('dist-val').innerText = Math.floor(distance);
+            document.getElementById('bomb-val').innerText = player.bombs;
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAME_OVER';
+            document.getElementById('modal-title').innerText = "GAME OVER";
+            document.getElementById('modal-title').className = "font-pixel text-2xl sm:text-4xl text-red-500 mb-2 glow-text-pink";
+            document.getElementById('modal-sub').innerText = "The Ultra Cacti ended your journey!";
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-dist').innerText = Math.floor(distance);
+            document.getElementById('final-hearts').innerText = heartsCollected;
+            document.getElementById('message-modal').classList.remove('hidden');
+        }
+
+        function triggerVictory() {
+            gameState = 'VICTORY';
+            document.getElementById('modal-title').innerText = "💖 VICTORY! 💖";
+            document.getElementById('modal-title').className = "font-pixel text-2xl sm:text-4xl text-pink-400 mb-2 glow-text-pink";
+            document.getElementById('modal-sub').innerText = "You & Dino-Woman saved the galaxy!";
+            document.getElementById('final-score').innerText = score + 5000;
+            document.getElementById('final-dist').innerText = Math.floor(distance);
+            document.getElementById('final-hearts').innerText = heartsCollected;
+            document.getElementById('message-modal').classList.remove('hidden');
+        }
+
+        function mainLoop() {
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+            if (gameState === 'PLAYING') {
+                distance += 0.2;
+                checkLevelProgression();
+
+                // Apply Screen Shake
+                ctx.save();
+                if (screenShake > 0) {
+                    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+                    screenShake *= 0.9;
+                }
+
+                // Render Background
+                drawBackground();
+
+                // Update & Render Entities
+                player.update();
+                player.draw();
+
+                dinoWoman.update();
+                dinoWoman.draw();
+
+                handleShooting();
+                spawnEnemies();
+
+                // Projectiles Update
+                projectiles.forEach((p, idx) => {
+                    p.update();
+                    p.draw();
+                    if (p.x < -20 || p.x > CANVAS_WIDTH + 20) projectiles.splice(idx, 1);
+                });
+
+                // Enemies Update
+                enemies.forEach((e, idx) => {
+                    e.update();
+                    e.draw();
+                    if (e.x < -100) enemies.splice(idx, 1);
+                });
+
+                // Hearts Update
+                heartsList.forEach((h, idx) => {
+                    h.update();
+                    h.draw();
+                    if (h.x < -20) heartsList.splice(idx, 1);
+                });
+
+                // Particle Engine
+                particles.forEach((part, idx) => {
+                    part.x += part.vx;
+                    part.y += part.vy;
+                    part.life--;
+                    ctx.fillStyle = part.color;
+                    ctx.fillRect(part.x, part.y, part.size, part.size);
+                    if (part.life <= 0) particles.splice(idx, 1);
+                });
+
+                // Floating Text Engine
+                floatingTexts.forEach((ft, idx) => {
+                    ft.y += ft.vy;
+                    ft.alpha -= 0.02;
+                    ctx.fillStyle = ft.color;
+                    ctx.font = 'bold 14px Rajdhani';
+                    ctx.fillText(ft.text, ft.x, ft.y);
+                    if (ft.alpha <= 0) floatingTexts.splice(idx, 1);
+                });
+
+                checkCollisions();
+                updateHUD();
+
+                if (player.hp <= 0) {
+                    triggerGameOver();
+                }
+
+                ctx.restore();
+            } else {
+                drawBackground();
+            }
+
+            requestAnimationFrame(mainLoop);
+        }
+
+
+        // Keyboard Controls Setup
+        window.addEventListener('keydown', (e) => {
+            audio.init();
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+                keys.Jump = true; keys.Up = true;
+                if (gameState === 'PLAYING') player.jump();
+            }
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') { keys.Down = true; player.ducking = true; }
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.Right = true;
+            if (e.code === 'KeyF' || e.code === 'KeyX') keys.Fire = true;
+            if (e.code === 'KeyG' || e.code === 'KeyC') keys.Bomb = true;
+            if (e.code === 'KeyE') player.switchWeapon();
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { keys.Jump = false; keys.Up = false; }
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') { keys.Down = false; player.ducking = false; }
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.Left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.Right = false;
+            if (e.code === 'KeyF' || e.code === 'KeyX') keys.Fire = false;
+        });
+
+        // Touch Control Listeners
+        function bindTouchBtn(id, onPress, onRelease) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                audio.init();
+                onPress();
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                if (onRelease) onRelease();
+            });
+        }
+
+        bindTouchBtn('touch-up', () => { keys.Up = true; player.jump(); }, () => { keys.Up = false; });
+        bindTouchBtn('touch-down', () => { keys.Down = true; player.ducking = true; }, () => { keys.Down = false; player.ducking = false; });
+        bindTouchBtn('touch-fire', () => { keys.Fire = true; }, () => { keys.Fire = false; });
+        bindTouchBtn('touch-jump', () => { player.jump(); });
+        bindTouchBtn('touch-bomb', () => { keys.Bomb = true; });
+        bindTouchBtn('touch-switch', () => { player.switchWeapon(); });
+
+        // Start & Restart Button Handlers
+        document.getElementById('start-btn').addEventListener('click', () => {
+            audio.init();
+            document.getElementById('start-menu').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            gameState = 'PLAYING';
+            currentLevel = 1;
+            distance = 0;
+            score = 0;
+            player.reset();
+            enemies = [];
+            projectiles = [];
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            document.getElementById('message-modal').classList.add('hidden');
+            gameState = 'PLAYING';
+            currentLevel = 1;
+            distance = 0;
+            score = 0;
+            player.reset();
+            enemies = [];
+            projectiles = [];
+            document.getElementById('level-title').innerText = "STAGE 1: DESERT RUN";
+            document.getElementById('objective-text').innerText = "Survive & Watch out for Ultra Cacti!";
+        });
+
+        // Initialize Loop
+        window.onload = () => {
+            requestAnimationFrame(mainLoop);
+        };
+    </script>
+</body>
+</html>
