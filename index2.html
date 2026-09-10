@@ -42,7 +42,7 @@
             letter-spacing: 2px;
         }
         .controls {
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             padding: 15px 25px;
             border-radius: 12px;
             margin-bottom: 20px;
@@ -112,6 +112,7 @@
         let GAME_HEIGHT = window.innerHeight;
         let GROUND_Y = 4000;
         
+        // Game States: 'TITLE', 'FLAPPY', 'TRANSITION', 'CATCHER', 'EATING_ANIMATION', 'GAMEOVER'
         let state = 'TITLE';
         let time = 0;
         let cameraY = 0;
@@ -138,12 +139,19 @@
         let catcherDifficulty = 1;
         let targetAlienX = GAME_WIDTH / 2;
 
+        // Eating Animation Variables
+        let eatingTimer = 0;
+        let chompTexts = [];
+        let flyingTacos = [];
+
         window.addEventListener('resize', () => {
             GAME_WIDTH = window.innerWidth;
             GAME_HEIGHT = window.innerHeight;
             canvas.width = GAME_WIDTH;
             canvas.height = GAME_HEIGHT;
-            if(state === 'CATCHER') cameraY = GROUND_Y - GAME_HEIGHT;
+            if(state === 'CATCHER' || state === 'EATING_ANIMATION' || state === 'GAMEOVER') {
+                cameraY = GROUND_Y - GAME_HEIGHT;
+            }
         });
         window.dispatchEvent(new Event('resize'));
 
@@ -194,6 +202,10 @@
             targetAlienX = GAME_WIDTH / 2;
             alien.x = targetAlienX;
 
+            eatingTimer = 0;
+            chompTexts = [];
+            flyingTacos = [];
+
             clouds = [];
             for (let i = 0; i < 15; i++) {
                 clouds.push({
@@ -209,10 +221,21 @@
         }
 
         function gameOver(reason) {
-            state = 'GAMEOVER';
-            document.getElementById('game-over-screen').classList.remove('hidden');
+            state = 'EATING_ANIMATION';
+            eatingTimer = 0;
+            alien.x = GAME_WIDTH / 2; // Move to center for eating scene
+            chompTexts = [];
+            flyingTacos = [];
+            
             document.getElementById('go-title').innerText = reason;
             document.getElementById('go-score').innerText = `Tacos Caught: ${catcherScore}`;
+
+            // Reveal Game Over modal after 1.5s while eating animation keeps playing
+            setTimeout(() => {
+                if (state === 'EATING_ANIMATION') {
+                    document.getElementById('game-over-screen').classList.remove('hidden');
+                }
+            }, 1500);
         }
 
         function update() {
@@ -341,6 +364,55 @@
                     }
                 }
             }
+            else if (state === 'EATING_ANIMATION') {
+                cameraY = GROUND_Y - GAME_HEIGHT;
+                eatingTimer++;
+
+                // Spawn tacos flying from ground pile into mouth
+                if (eatingTimer % 12 === 0) {
+                    flyingTacos.push({
+                        x: alien.x + (Math.random() - 0.5) * 80,
+                        y: GROUND_Y - 15,
+                        targetX: alien.x,
+                        targetY: GROUND_Y - 185,
+                        progress: 0,
+                        speed: 0.1
+                    });
+                }
+
+                // Update flying tacos
+                for (let i = flyingTacos.length - 1; i >= 0; i--) {
+                    let ft = flyingTacos[i];
+                    ft.progress += ft.speed;
+                    if (ft.progress >= 1) {
+                        // Taco reached mouth! Explosion of taco crumbs & lettuce!
+                        spawnFoodCrumbs(alien.x, GROUND_Y - 185);
+                        flyingTacos.splice(i, 1);
+                    }
+                }
+
+                // Spawn floating funny text
+                if (eatingTimer % 25 === 0) {
+                    const words = ["NOM NOM!", "CHOMP!", "ZHADNO!!", "CRUNCH!", "SLURP! 🌮", "MORE TACOS!"];
+                    let randomWord = words[Math.floor(Math.random() * words.length)];
+                    chompTexts.push({
+                        text: randomWord,
+                        x: alien.x + (Math.random() - 0.5) * 120,
+                        y: GROUND_Y - 200,
+                        vy: -2,
+                        alpha: 1,
+                        scale: Math.random() * 0.4 + 0.9
+                    });
+                }
+
+                // Update floating text
+                for (let i = chompTexts.length - 1; i >= 0; i--) {
+                    let ct = chompTexts[i];
+                    ct.y += ct.vy;
+                    ct.alpha -= 0.02;
+                    if (ct.alpha <= 0) chompTexts.splice(i, 1);
+                }
+            }
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
@@ -437,10 +509,41 @@
                 });
             }
 
+            // EATING ANIMATION DRAWING
+            if (state === 'EATING_ANIMATION') {
+                // Giant taco pile at ground
+                drawTacoPile(alien.x, GROUND_Y - 5);
+
+                // Flying Tacos going into mouth
+                flyingTacos.forEach(ft => {
+                    let curX = ft.x + (ft.targetX - ft.x) * ft.progress;
+                    let curY = ft.y + (ft.targetY - ft.y) * ft.progress;
+                    drawRealisticTaco(curX, curY, ft.progress * Math.PI * 4);
+                });
+
+                // Greedily eating alien
+                drawGreedyAlien(alien.x, GROUND_Y - 90, time);
+
+                // Draw floating "NOM NOM!" / "CHOMP!" texts
+                chompTexts.forEach(ct => {
+                    ctx.save();
+                    ctx.translate(ct.x, ct.y);
+                    ctx.scale(ct.scale, ct.scale);
+                    ctx.font = 'bold 32px Arial';
+                    ctx.fillStyle = `rgba(250, 204, 21, ${ct.alpha})`;
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${ct.alpha})`;
+                    ctx.lineWidth = 4;
+                    ctx.textAlign = 'center';
+                    ctx.strokeText(ct.text, 0, 0);
+                    ctx.fillText(ct.text, 0, 0);
+                    ctx.restore();
+                });
+            }
+
             particles.forEach(p => {
-                ctx.fillStyle = `rgba(255, 215, 0, ${p.life / p.maxLife})`;
+                ctx.fillStyle = p.color || `rgba(255, 215, 0, ${p.life / p.maxLife})`;
                 ctx.beginPath();
-                ctx.arc(p.x, p.y, Math.random() * 4 + 2, 0, Math.PI*2);
+                ctx.arc(p.x, p.y, p.size || (Math.random() * 4 + 2), 0, Math.PI*2);
                 ctx.fill();
             });
 
@@ -610,6 +713,14 @@
             ctx.restore();
         }
 
+        function drawTacoPile(x, y) {
+            for (let i = -60; i <= 60; i += 20) {
+                drawRealisticTaco(x + i + Math.sin(i)*5, y - Math.abs(i)*0.2, (i%40)*0.1);
+                drawRealisticTaco(x + i*0.6, y - 18, (i%30)*0.2);
+            }
+            drawRealisticTaco(x, y - 30, 0);
+        }
+
         function drawRealisticBomb(x, y, rotation) {
             ctx.save();
             ctx.translate(x, y);
@@ -706,6 +817,101 @@
             ctx.restore();
         }
 
+        // GREEDY & FUNNY TACO EATING ANIMATION
+        function drawGreedyAlien(x, y, t) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            let chewShaking = (Math.random() - 0.5) * 6;
+            let bellyPulse = Math.sin(t * 0.3) * 6;
+            let mouthChomp = Math.abs(Math.sin(t * 0.4)); // Fast champing
+
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#4ade80';
+
+            // Legs crouched down near taco pile
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(-10, -20); ctx.lineTo(-25, -10); ctx.lineTo(-15, 10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(10, -20); ctx.lineTo(25, -10); ctx.lineTo(15, 10); ctx.stroke();
+
+            // Fat chubby pulsing alien belly (from eating so much!)
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.ellipse(chewShaking, -50, 20 + bellyPulse, 26 + bellyPulse*0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Head (Shaking furiously while eating)
+            ctx.beginPath();
+            ctx.ellipse(chewShaking, -95, 18, 24, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Wild bulging greedy eyes!
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(-7 + chewShaking, -102, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(7 + chewShaking, -102, 7, 0, Math.PI * 2); ctx.fill();
+
+            // Crazy spinning pupils
+            ctx.fillStyle = 'black';
+            let pupilAngle = t * 0.3;
+            ctx.beginPath(); ctx.arc(-7 + chewShaking + Math.cos(pupilAngle)*2, -102 + Math.sin(pupilAngle)*2, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(7 + chewShaking - Math.cos(pupilAngle)*2, -102 - Math.sin(pupilAngle)*2, 3, 0, Math.PI * 2); ctx.fill();
+
+            // Giant Mouth (Opening wide and champing!)
+            ctx.fillStyle = '#7f1d1d';
+            ctx.beginPath();
+            let mouthOpenHeight = 12 + mouthChomp * 16;
+            ctx.ellipse(chewShaking, -85, 12, mouthOpenHeight, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Funny Teeth inside mouth
+            ctx.fillStyle = 'white';
+            ctx.fillRect(-8 + chewShaking, -85 - mouthOpenHeight*0.7, 4, 4);
+            ctx.fillRect(4 + chewShaking, -85 - mouthOpenHeight*0.7, 4, 4);
+
+            // Shoveling Arms (Moving fast up and down from pile to mouth!)
+            let armCycle = Math.sin(t * 0.5);
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 6;
+
+            // Left hand shoving taco into mouth
+            ctx.beginPath();
+            ctx.moveTo(-12 + chewShaking, -65);
+            ctx.lineTo(-30, -50 + armCycle * 20);
+            ctx.lineTo(-5 + chewShaking, -85);
+            ctx.stroke();
+
+            // Right hand grabbing next taco
+            ctx.beginPath();
+            ctx.moveTo(12 + chewShaking, -65);
+            ctx.lineTo(30, -50 - armCycle * 20);
+            ctx.lineTo(5 + chewShaking, -85);
+            ctx.stroke();
+
+            // Draw tacos currently in his hands
+            drawRealisticTaco(-5 + chewShaking, -85, armCycle);
+            drawRealisticTaco(5 + chewShaking, -85, -armCycle);
+
+            ctx.restore();
+        }
+
+        function spawnFoodCrumbs(x, y) {
+            const colors = ['#eab308', '#22c55e', '#ef4444', '#facc15'];
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 20,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8 - 2,
+                    life: 25,
+                    maxLife: 25,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+
         function spawnPipe() {
             let minHeight = 60;
             let maxHeight = GAME_HEIGHT - PIPE_GAP - minHeight;
@@ -734,7 +940,9 @@
                     vx: (Math.random() - 0.5) * 10,
                     vy: (Math.random() - 0.5) * 10,
                     life: 20,
-                    maxLife: 20
+                    maxLife: 20,
+                    color: color,
+                    size: Math.random() * 4 + 2
                 });
             }
         }
