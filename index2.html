@@ -1,26 +1,88 @@
-<!-- ... existing code ... -->
-        .btn:active {
-            transform: scale(0.95);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flappy Cosita</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #050510;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            color: #4ade80;
+            letter-spacing: 2px;
         }
         .controls {
-            background: rgba(0, 0, 0, 0.6);
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 12px;
             margin-bottom: 20px;
             font-size: 1.1rem;
             text-align: left;
             border: 1px solid #4ade80;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
         }
         .controls ul {
             margin: 5px 0 0 0;
             padding-left: 20px;
+        }
+        .btn {
+            pointer-events: auto;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background-color: #4ade80;
+            color: #111;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(74, 222, 128, 0.4);
+            transition: transform 0.1s, background-color 0.2s;
+        }
+        .btn:hover {
+            background-color: #22c55e;
+        }
+        .btn:active {
+            transform: scale(0.95);
         }
         .hidden {
             display: none !important;
         }
     </style>
 </head>
-<!-- ... existing code ... -->
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
     <div id="ui-layer">
         <div id="start-screen">
             <h1>FLAPPY COSITA</h1>
@@ -36,25 +98,116 @@
         </div>
         
         <div id="game-over-screen" class="hidden">
-<!-- ... existing code ... -->
+            <h1 id="go-title">Game Over!</h1>
+            <p id="go-score" style="font-size: 1.8rem; margin-bottom: 20px;">Score: 0</p>
+            <button class="btn" onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let GAME_WIDTH = window.innerWidth;
+        let GAME_HEIGHT = window.innerHeight;
+        let GROUND_Y = 4000;
+        
+        let state = 'TITLE';
+        let time = 0;
+        let cameraY = 0;
+
+        let bird = { x: 100, y: GAME_HEIGHT/2, vy: 0, radius: 15, frozen: false };
+        let pipes = [];
+        let flappyScore = 0;
+        const GRAVITY = 0.4;
+        const JUMP = -8;
+        const PIPE_SPEED = 3;
+        const PIPE_WIDTH = 70;
+        const PIPE_GAP = 180;
+        const FLAPPY_WIN_SCORE = 3;
+
+        let unusualPoop = { x: 0, y: 0, vy: 0, type: '🌮' };
+        let particles = [];
+        let clouds = [];
+
+        let alien = { x: GAME_WIDTH / 2, y: GROUND_Y - 100, width: 40 };
+        let items = [];
+        let catcherScore = 0;
         let catcherLives = 3;
         let spawnTimer = 0;
         let catcherDifficulty = 1;
+        let targetAlienX = GAME_WIDTH / 2;
 
-        // Realistic elements
-        let clouds = [];
-        for(let i=0; i<15; i++) {
-            clouds.push({
-                x: Math.random() * GAME_WIDTH,
-                y: Math.random() * GAME_HEIGHT * 0.7,
-                speed: Math.random() * 0.5 + 0.1,
-                scale: Math.random() * 0.5 + 0.5
-            });
+        window.addEventListener('resize', () => {
+            GAME_WIDTH = window.innerWidth;
+            GAME_HEIGHT = window.innerHeight;
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+            if(state === 'CATCHER') cameraY = GROUND_Y - GAME_HEIGHT;
+        });
+        window.dispatchEvent(new Event('resize'));
+
+        function handlePointerDown(e) {
+            if (state === 'FLAPPY' && !bird.frozen) {
+                bird.vy = JUMP;
+            }
+            updatePointer(e);
         }
 
-        // Handle Resizing
-        window.addEventListener('resize', () => {
-<!-- ... existing code ... -->
+        function handlePointerMove(e) {
+            updatePointer(e);
+        }
+
+        function updatePointer(e) {
+            if (state === 'CATCHER') {
+                let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                targetAlienX = clientX;
+            }
+        }
+
+        window.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('touchstart', handlePointerDown, {passive: false});
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('touchmove', handlePointerMove, {passive: false});
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && state === 'FLAPPY' && !bird.frozen) {
+                bird.vy = JUMP;
+            }
+        });
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
+            
+            bird = { x: GAME_WIDTH/3, y: GAME_HEIGHT/2, vy: 0, radius: 15, frozen: false };
+            pipes = [];
+            flappyScore = 0;
+            cameraY = 0;
+            particles = [];
+            
+            items = [];
+            catcherScore = 0;
+            catcherLives = 3;
+            spawnTimer = 0;
+            catcherDifficulty = 1;
+            targetAlienX = GAME_WIDTH / 2;
+            alien.x = targetAlienX;
+
+            clouds = [];
+            for (let i = 0; i < 15; i++) {
+                clouds.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * GAME_HEIGHT * 0.7,
+                    speed: Math.random() * 0.5 + 0.1,
+                    scale: Math.random() * 0.5 + 0.5
+                });
+            }
+
+            state = 'FLAPPY';
+            spawnPipe();
+        }
+
         function gameOver(reason) {
             state = 'GAMEOVER';
             document.getElementById('game-over-screen').classList.remove('hidden');
@@ -62,11 +215,9 @@
             document.getElementById('go-score').innerText = `Tacos Caught: ${catcherScore}`;
         }
 
-        // Logic Updates
         function update() {
             time++;
 
-            // Update clouds
             clouds.forEach(c => {
                 c.x -= c.speed;
                 if (c.x + 200 < 0) {
@@ -77,8 +228,120 @@
 
             if (state === 'FLAPPY') {
                 if (!bird.frozen) {
-<!-- ... existing code ... -->
-            // Update particles
+                    bird.vy += GRAVITY;
+                    bird.y += bird.vy;
+
+                    if (pipes.length === 0 || pipes[pipes.length - 1].x < GAME_WIDTH - 250) {
+                        spawnPipe();
+                    }
+
+                    for (let i = pipes.length - 1; i >= 0; i--) {
+                        let p = pipes[i];
+                        p.x -= PIPE_SPEED;
+
+                        if (!p.passed && p.x + PIPE_WIDTH < bird.x) {
+                            p.passed = true;
+                            flappyScore++;
+                            if (flappyScore >= FLAPPY_WIN_SCORE) {
+                                triggerTransition();
+                            }
+                        }
+
+                        if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + PIPE_WIDTH) {
+                            if (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.topHeight + PIPE_GAP) {
+                                startGame();
+                            }
+                        }
+
+                        if (p.x + PIPE_WIDTH < 0) {
+                            pipes.splice(i, 1);
+                        }
+                    }
+
+                    if (bird.y + bird.radius > GAME_HEIGHT || bird.y - bird.radius < 0) {
+                        startGame();
+                    }
+                }
+            } 
+            else if (state === 'TRANSITION') {
+                unusualPoop.vy += 0.2;
+                unusualPoop.y += unusualPoop.vy;
+                
+                if (time % 2 === 0) {
+                    particles.push({
+                        x: unusualPoop.x + (Math.random() - 0.5) * 20,
+                        y: unusualPoop.y,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        life: 30,
+                        maxLife: 30
+                    });
+                }
+
+                let targetCameraY = unusualPoop.y - GAME_HEIGHT / 2;
+                if (targetCameraY > GROUND_Y - GAME_HEIGHT) {
+                    targetCameraY = GROUND_Y - GAME_HEIGHT;
+                }
+                cameraY += (targetCameraY - cameraY) * 0.1;
+
+                if (unusualPoop.y > GROUND_Y - 50) {
+                    state = 'CATCHER';
+                    createExplosion(unusualPoop.x, GROUND_Y - 50, '#FFD700');
+                }
+            } 
+            else if (state === 'CATCHER') {
+                cameraY = GROUND_Y - GAME_HEIGHT;
+                
+                alien.x += (targetAlienX - alien.x) * 0.2;
+                if (alien.x < 30) alien.x = 30;
+                if (alien.x > GAME_WIDTH - 30) alien.x = GAME_WIDTH - 30;
+
+                spawnTimer++;
+                if (spawnTimer > 60 / catcherDifficulty) {
+                    spawnTimer = 0;
+                    items.push({
+                        x: Math.random() * (GAME_WIDTH - 60) + 30,
+                        y: cameraY - 50,
+                        vy: (Math.random() * 3 + 4) * catcherDifficulty,
+                        type: Math.random() > 0.75 ? '💣' : '🌮',
+                        rotation: Math.random() * Math.PI * 2,
+                        rotSpeed: (Math.random() - 0.5) * 0.2
+                    });
+                    catcherDifficulty += 0.015;
+                }
+
+                for (let i = items.length - 1; i >= 0; i--) {
+                    let item = items[i];
+                    item.y += item.vy;
+                    item.rotation += item.rotSpeed;
+
+                    if (item.y > GROUND_Y - 20) {
+                        if (item.type === '🌮') {
+                            catcherLives--;
+                            createExplosion(item.x, item.y, '#ff4444');
+                            if (catcherLives <= 0) gameOver("You dropped too many tacos!");
+                        }
+                        items.splice(i, 1);
+                        continue;
+                    }
+
+                    let dx = item.x - alien.x;
+                    let dy = item.y - (alien.y - 60);
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+
+                    if (dist < 45) {
+                        if (item.type === '💣') {
+                            createExplosion(item.x, item.y, '#FF0000');
+                            gameOver("You caught a bomb!");
+                        } else {
+                            catcherScore++;
+                            createExplosion(item.x, item.y, '#FFD700');
+                        }
+                        items.splice(i, 1);
+                    }
+                }
+            }
+
             for (let i = particles.length - 1; i >= 0; i--) {
                 let p = particles[i];
                 p.x += p.vx;
@@ -88,9 +351,7 @@
             }
         }
 
-        // Draw Game
         function draw() {
-            // Realistic Background gradient based on Camera Y (Sky to Space to Ground)
             let depthFactor = cameraY / (GROUND_Y - GAME_HEIGHT);
             if (depthFactor < 0) depthFactor = 0;
             if (depthFactor > 1) depthFactor = 1;
@@ -105,14 +366,12 @@
             ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
             ctx.save();
-            ctx.translate(0, -cameraY); // Apply Camera
+            ctx.translate(0, -cameraY);
 
-            // Draw Parallax Clouds in Sky
             if (cameraY < GAME_HEIGHT) {
                 drawClouds();
             }
 
-            // Draw Stars in the background during transition
             if (cameraY > GAME_HEIGHT * 0.5) {
                 ctx.fillStyle = 'white';
                 for(let i=0; i<50; i++) {
@@ -120,13 +379,14 @@
                     let sy = (Math.cos(i*321) * 0.5 + 0.5) * GROUND_Y;
                     if(sy > cameraY && sy < cameraY + GAME_HEIGHT) {
                         ctx.globalAlpha = Math.abs(Math.sin(time*0.05 + i)) * depthFactor;
-                        ctx.beginPath(); ctx.arc(sx, sy, Math.random() * 2 + 1, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); 
+                        ctx.arc(sx, sy, Math.random() * 2 + 1, 0, Math.PI*2); 
+                        ctx.fill();
                     }
                 }
                 ctx.globalAlpha = 1;
             }
 
-            // Draw Realistic Ground
             let soilGrad = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 500);
             soilGrad.addColorStop(0, '#3d2616');
             soilGrad.addColorStop(1, '#170e08');
@@ -138,39 +398,36 @@
             grassGrad.addColorStop(1, '#1b5e20');
             ctx.fillStyle = grassGrad;
             ctx.fillRect(0, GROUND_Y, GAME_WIDTH, 25);
-            
-            // Grass blades
+
             if (cameraY > GROUND_Y - GAME_HEIGHT - 100) {
                 ctx.fillStyle = '#2fb835';
-                for(let i=0; i<GAME_WIDTH; i+=20) {
-                    let h = 8 + Math.sin(i * 0.1) * 4;
-                    ctx.beginPath(); ctx.moveTo(i, GROUND_Y + 5); ctx.lineTo(i + 5, GROUND_Y - h); ctx.lineTo(i + 10, GROUND_Y + 5); ctx.fill();
+                for(let i=0; i<GAME_WIDTH; i+=10) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, GROUND_Y);
+                    ctx.lineTo(i+5, GROUND_Y - 8);
+                    ctx.lineTo(i+10, GROUND_Y);
+                    ctx.fill();
                 }
             }
 
             if (state === 'FLAPPY' || state === 'TRANSITION') {
-                // Draw Realistic Pipes
                 pipes.forEach(p => {
-                    drawRealisticPipe(p.x, 0, PIPE_WIDTH, p.topHeight, true);
-                    drawRealisticPipe(p.x, p.topHeight + PIPE_GAP, PIPE_WIDTH, GROUND_Y - (p.topHeight + PIPE_GAP), false);
+                    drawRealisticPipe(p.x, 0, p.topHeight, true);
+                    drawRealisticPipe(p.x, p.topHeight + PIPE_GAP, GROUND_Y - (p.topHeight + PIPE_GAP), false);
                 });
 
-                // Draw Realistic Bird
                 drawRealisticBird(bird.x, bird.y, bird.vy, bird.frozen);
             }
 
             if (state === 'TRANSITION' || state === 'CATCHER') {
-                // Draw falling unusual poop (Glowing Taco)
                 if (state === 'TRANSITION') {
                     drawRealisticTaco(unusualPoop.x, unusualPoop.y, time * 0.1);
                 }
 
-                // Draw Catcher Alien with Shading
                 if (cameraY >= GROUND_Y - GAME_HEIGHT - 200) {
                     drawAlien(alien.x, alien.y, time);
                 }
 
-                // Draw Items
                 items.forEach(item => {
                     if (item.type === '🌮') {
                         drawRealisticTaco(item.x, item.y, item.rotation);
@@ -180,7 +437,6 @@
                 });
             }
 
-            // Draw Particles
             particles.forEach(p => {
                 ctx.fillStyle = `rgba(255, 215, 0, ${p.life / p.maxLife})`;
                 ctx.beginPath();
@@ -188,9 +444,8 @@
                 ctx.fill();
             });
 
-            ctx.restore(); // Restore Camera
+            ctx.restore();
 
-            // Draw UI Overlays
             if (state === 'FLAPPY') {
                 ctx.fillStyle = 'white';
                 ctx.strokeStyle = 'black';
@@ -199,12 +454,12 @@
                 ctx.textAlign = 'center';
                 ctx.strokeText(flappyScore, GAME_WIDTH/2, 100);
                 ctx.fillText(flappyScore, GAME_WIDTH/2, 100);
-            } 
-            else if (state === 'CATCHER') {
+            } else if (state === 'CATCHER') {
                 ctx.fillStyle = 'white';
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 3;
                 ctx.font = 'bold 28px Arial';
+                
                 ctx.textAlign = 'left';
                 let scoreText = `Tacos: ${catcherScore}`;
                 ctx.strokeText(scoreText, 20, 40);
@@ -213,115 +468,112 @@
                 ctx.textAlign = 'right';
                 let livesStr = "";
                 for(let i=0; i<catcherLives; i++) livesStr += "❤️";
+                ctx.strokeText(livesStr, GAME_WIDTH - 20, 40);
                 ctx.fillText(livesStr, GAME_WIDTH - 20, 40);
-            }
-            else if (state === 'TRANSITION') {
-                ctx.fillStyle = 'white';
-                ctx.font = 'bold 30px Arial';
-                ctx.textAlign = 'center';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = "black";
-                ctx.fillText("Uh oh... what did he eat?!", GAME_WIDTH/2, 150);
-                ctx.shadowBlur = 0;
             }
 
             requestAnimationFrame(draw);
             update();
         }
 
-        // Helper Functions
         function drawClouds() {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
             clouds.forEach(c => {
                 ctx.save();
-                ctx.translate(c.x, c.y + cameraY*0.5); // Parallax effect
+                ctx.translate(c.x, c.y + cameraY * 0.5);
                 ctx.scale(c.scale, c.scale);
                 ctx.beginPath();
-                ctx.arc(0, 0, 30, 0, Math.PI*2);
-                ctx.arc(25, -15, 35, 0, Math.PI*2);
-                ctx.arc(50, 0, 30, 0, Math.PI*2);
+                ctx.arc(0, 0, 30, 0, Math.PI * 2);
+                ctx.arc(25, -15, 30, 0, Math.PI * 2);
+                ctx.arc(50, 0, 30, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             });
         }
 
         function drawRealisticPipe(x, y, width, height, isTop) {
-            let grad = ctx.createLinearGradient(x, 0, x + width, 0);
+            let grad = ctx.createLinearGradient(x, 0, x + PIPE_WIDTH, 0);
             grad.addColorStop(0, '#588c24');
             grad.addColorStop(0.2, '#8fe33b');
             grad.addColorStop(0.5, '#73bf2a');
             grad.addColorStop(1, '#3e6617');
-            
+
             ctx.fillStyle = grad;
-            ctx.fillRect(x, y, width, height);
-            
+            ctx.fillRect(x, y, PIPE_WIDTH, height);
+
             let capHeight = 30;
             let capExpand = 6;
             let capY = isTop ? y + height - capHeight : y;
-            
-            let capGrad = ctx.createLinearGradient(x - capExpand, 0, x + width + capExpand, 0);
+
+            let capGrad = ctx.createLinearGradient(x - capExpand, 0, x + PIPE_WIDTH + capExpand, 0);
             capGrad.addColorStop(0, '#588c24');
             capGrad.addColorStop(0.2, '#a5f24e');
             capGrad.addColorStop(0.5, '#73bf2a');
             capGrad.addColorStop(1, '#3e6617');
-            
+
             ctx.fillStyle = capGrad;
-            ctx.fillRect(x - capExpand, capY, width + capExpand * 2, capHeight);
-            
+            ctx.fillRect(x - capExpand, capY, PIPE_WIDTH + capExpand * 2, capHeight);
+
             ctx.strokeStyle = '#22380c';
             ctx.lineWidth = 3;
-            ctx.strokeRect(x, y, width, height);
-            ctx.strokeRect(x - capExpand, capY, width + capExpand * 2, capHeight);
+            ctx.strokeRect(x, y, PIPE_WIDTH, height);
+            ctx.strokeRect(x - capExpand, capY, PIPE_WIDTH + capExpand * 2, capHeight);
         }
 
         function drawRealisticBird(x, y, vy, frozen) {
             ctx.save();
             ctx.translate(x, y);
+            
             if (!frozen) {
                 ctx.rotate(Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (vy * 0.1))));
             } else {
                 ctx.translate((Math.random()-0.5)*5, (Math.random()-0.5)*5);
             }
 
-            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
             ctx.shadowBlur = 10;
             ctx.shadowOffsetY = 5;
 
-            // Body
-            let bodyGrad = ctx.createRadialGradient(0, -5, 2, 0, 0, 18);
+            let bodyGrad = ctx.createRadialGradient(-0, -5, 2, 0, 0, 18);
             bodyGrad.addColorStop(0, '#ffec6e');
             bodyGrad.addColorStop(1, '#e5a500');
             ctx.fillStyle = bodyGrad;
-            ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, 16, 0, Math.PI * 2);
+            ctx.fill();
 
             ctx.shadowColor = 'transparent';
 
-            // Eye
             ctx.fillStyle = 'white';
-            ctx.beginPath(); ctx.arc(7, -6, 6, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath();
+            ctx.arc(7, -6, 6, 0, Math.PI * 2);
+            ctx.fill();
             ctx.fillStyle = 'black';
-            ctx.beginPath(); ctx.arc(9, -6, 2.5, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath();
+            ctx.arc(9, -6, 2.5, 0, Math.PI * 2);
+            ctx.fill();
 
-            // Beak
-            let beakGrad = ctx.createLinearGradient(12, 0, 24, 0);
-            beakGrad.addColorStop(0, '#ff7b00');
-            beakGrad.addColorStop(1, '#cc4400');
-            ctx.fillStyle = beakGrad;
-            ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(26, 4); ctx.lineTo(14, 10); ctx.fill();
-            
-            // Wing
-            let wingY = frozen ? 0 : Math.sin(time * 0.5) * 6;
-            let wingGrad = ctx.createLinearGradient(-10, 0, 5, 0);
-            wingGrad.addColorStop(0, '#fff');
-            wingGrad.addColorStop(1, '#f39c12');
-            ctx.fillStyle = wingGrad;
-            ctx.beginPath(); ctx.ellipse(-4, 4 + wingY, 10, 6, Math.PI/8, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#ff4500';
+            ctx.beginPath();
+            ctx.moveTo(12, 0);
+            ctx.lineTo(24, 4);
+            ctx.lineTo(12, 10);
+            ctx.closePath();
+            ctx.fill();
 
-            if (frozen && state === 'TRANSITION' && unusualPoop.y < y + 10) {
-                ctx.fillStyle = 'red';
-                ctx.font = "bold 24px Arial";
-                ctx.fillText("❗", 0, -30);
+            let wingY = Math.sin(time * 0.3) * 5;
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath();
+            ctx.ellipse(-6, 2 + wingY, 8, 5, Math.PI / 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (frozen) {
+                ctx.fillStyle = '#ef4444';
+                ctx.font = 'bold 28px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('❗', 0, -25);
             }
+
             ctx.restore();
         }
 
@@ -329,12 +581,31 @@
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(rotation);
-            let aura = ctx.createRadialGradient(0, 0, 5, 0, 0, 30);
-            aura.addColorStop(0, 'rgba(255, 255, 0, 0.8)');
-            aura.addColorStop(1, 'rgba(255, 255, 0, 0)');
-            ctx.fillStyle = aura;
-            ctx.beginPath(); ctx.arc(0, 0, 40, 0, Math.PI*2); ctx.fill();
-            ctx.font = "35px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🌮", 0, 0);
+
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#facc15';
+
+            ctx.fillStyle = '#eab308';
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI);
+            ctx.fill();
+
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(-18, -2, 36, 4);
+
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(-8, -2, 3, 0, Math.PI * 2);
+            ctx.arc(4, -3, 4, 0, Math.PI * 2);
+            ctx.arc(12, -1, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#ca8a04';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 20, 0, Math.PI);
+            ctx.stroke();
+
             ctx.restore();
         }
 
@@ -342,15 +613,108 @@
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(rotation);
-            ctx.font = "35px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("💣", 0, 0); 
+
+            let grad = ctx.createRadialGradient(-4, -4, 2, 0, 0, 18);
+            grad.addColorStop(0, '#64748b');
+            grad.addColorStop(1, '#0f172a');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, -18);
+            ctx.quadraticCurveTo(10, -25, 12, -30);
+            ctx.stroke();
+
+            ctx.fillStyle = time % 4 < 2 ? '#ef4444' : '#facc15';
+            ctx.beginPath();
+            ctx.arc(12, -30, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawAlien(x, y, t) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            let sway = Math.sin(t * 0.12) * 12;
+            let bounce = Math.abs(Math.sin(t * 0.18)) * 8;
+
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#4ade80';
+
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.ellipse(sway * 0.8, -90 - bounce, 14, 20, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.ellipse(sway * 0.8 - 5, -92 - bounce, 4, 7, -Math.PI / 6, 0, Math.PI * 2);
+            ctx.ellipse(sway * 0.8 + 5, -92 - bounce, 4, 7, Math.PI / 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#16a34a';
+            ctx.fillRect(-6 + sway * 0.3, -70 - bounce, 12, 40);
+
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+
+            ctx.beginPath();
+            ctx.moveTo(-5 + sway * 0.3, -35 - bounce);
+            ctx.lineTo(-15, -15);
+            ctx.lineTo(-8, 0);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(5 + sway * 0.3, -35 - bounce);
+            ctx.lineTo(15, -15);
+            ctx.lineTo(8, 0);
+            ctx.stroke();
+
+            let bucketY = -65 - bounce;
+            ctx.beginPath();
+            ctx.moveTo(-6 + sway * 0.3, -60 - bounce);
+            ctx.lineTo(-18, bucketY);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(6 + sway * 0.3, -60 - bounce);
+            ctx.lineTo(18, bucketY);
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            let bucketGrad = ctx.createLinearGradient(-20, 0, 20, 0);
+            bucketGrad.addColorStop(0, '#94a3b8');
+            bucketGrad.addColorStop(0.5, '#f1f5f9');
+            bucketGrad.addColorStop(1, '#475569');
+            ctx.fillStyle = bucketGrad;
+            ctx.beginPath();
+            ctx.moveTo(-22, bucketY - 15);
+            ctx.lineTo(22, bucketY - 15);
+            ctx.lineTo(16, bucketY + 15);
+            ctx.lineTo(-16, bucketY + 15);
+            ctx.closePath();
+            ctx.fill();
+
             ctx.restore();
         }
 
         function spawnPipe() {
-            let minHeight = 50;
+            let minHeight = 60;
             let maxHeight = GAME_HEIGHT - PIPE_GAP - minHeight;
             let topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
-            pipes.push({ x: GAME_WIDTH, topHeight: topHeight, passed: false });
+            
+            pipes.push({
+                x: GAME_WIDTH,
+                topHeight: topHeight,
+                passed: false
+            });
         }
 
         function triggerTransition() {
@@ -358,82 +722,18 @@
             bird.frozen = true;
             unusualPoop.x = bird.x;
             unusualPoop.y = bird.y;
-            unusualPoop.vy = -5; 
-        }
-
-        function drawAlien(x, y, t) {
-            ctx.save();
-            ctx.translate(x, y);
-            
-            let sway = Math.sin(t * 0.1) * 15; 
-            let bounce = Math.abs(Math.sin(t * 0.15)) * 10;
-            
-            // Drop Shadow
-            ctx.fillStyle = 'rgba(0,0,0,0.3)';
-            ctx.beginPath(); ctx.ellipse(0, 0, 30 + bounce*0.5, 8, 0, 0, Math.PI*2); ctx.fill();
-
-            // Metallic Bucket
-            ctx.save();
-            ctx.translate(sway * 0.5, -60 - bounce);
-            let bucketGrad = ctx.createLinearGradient(-20, 0, 20, 0);
-            bucketGrad.addColorStop(0, '#666'); bucketGrad.addColorStop(0.5, '#aaa'); bucketGrad.addColorStop(1, '#444');
-            ctx.fillStyle = bucketGrad;
-            ctx.beginPath(); ctx.moveTo(-15, -15); ctx.lineTo(15, -15); ctx.lineTo(10, 15); ctx.lineTo(-10, 15); ctx.fill();
-            ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.beginPath(); ctx.ellipse(0, -15, 15, 5, 0, 0, Math.PI*2); ctx.fillStyle = '#888'; ctx.fill(); ctx.stroke();
-            ctx.restore();
-
-            // Alien Skin
-            let skinGrad = ctx.createLinearGradient(-15, -100, 15, 0);
-            skinGrad.addColorStop(0, '#66ff66'); skinGrad.addColorStop(1, '#1a801a');
-            ctx.fillStyle = skinGrad; ctx.strokeStyle = '#0f4d0f'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-
-            // Legs
-            ctx.lineWidth = 10;
-            ctx.beginPath(); ctx.moveTo(-10 + sway*0.2, -30 - bounce); ctx.lineTo(-20, -15 - bounce*0.5); ctx.lineTo(-10, 0); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(10 + sway*0.2, -30 - bounce); ctx.lineTo(20, -15 - bounce*0.5); ctx.lineTo(10, 0); ctx.stroke();
-
-            // Body
-            ctx.beginPath();
-            if(ctx.roundRect) {
-                ctx.roundRect(-10 + sway*0.2, -80 - bounce, 20, 55, 10);
-            } else {
-                ctx.rect(-10 + sway*0.2, -80 - bounce, 20, 55); // Fallback
-            }
-            ctx.fill(); ctx.stroke();
-
-            // Head
-            ctx.save();
-            ctx.translate(sway*0.8, -95 - bounce);
-            ctx.rotate(Math.sin(t*0.05)*0.2);
-            ctx.beginPath(); ctx.ellipse(0, 0, 18, 22, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            // Alien Eyes
-            ctx.fillStyle = 'black';
-            ctx.beginPath(); ctx.ellipse(-7, -2, 5, 8, Math.PI/6, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.ellipse(7, -2, 5, 8, -Math.PI/6, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = 'white';
-            ctx.beginPath(); ctx.arc(-8, -5, 2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(6, -5, 2, 0, Math.PI*2); ctx.fill();
-            ctx.restore();
-
-            // Arms
-            let shoulderY = -70 - bounce;
-            ctx.lineWidth = 8;
-            ctx.beginPath(); ctx.moveTo(-8 + sway*0.2, shoulderY); ctx.lineTo(-25, shoulderY + 10); ctx.lineTo(-15 + sway*0.5, -60 - bounce); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(8 + sway*0.2, shoulderY); ctx.lineTo(25, shoulderY + 10); ctx.lineTo(15 + sway*0.5, -60 - bounce); ctx.stroke();
-
-            ctx.restore();
+            unusualPoop.vy = -4;
         }
 
         function createExplosion(x, y, color) {
-            for (let i = 0; i < 25; i++) {
+            for (let i = 0; i < 20; i++) {
                 particles.push({
                     x: x,
                     y: y,
-                    vx: (Math.random() - 0.5) * 12,
-                    vy: (Math.random() - 0.5) * 12,
-                    life: 25,
-                    maxLife: 25
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 20,
+                    maxLife: 20
                 });
             }
         }
@@ -456,5 +756,7 @@
             } : {r:0, g:0, b:0};
         }
 
-        // Start the loop
-<!-- ... existing code ... -->
+        requestAnimationFrame(draw);
+    </script>
+</body>
+</html>
