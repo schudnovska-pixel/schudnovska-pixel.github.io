@@ -3,23 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nutty Heist: Squirrel Park Panic</title>
+    <title>Nutty Heist: Squirrel & Cosita Park Panic</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-            font-family: 'Fredoka One', 'Nunito', cursive, sans-serif;
-        }
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
+            background-color: #050510;
             overflow: hidden;
-            background-color: #1a2f1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             touch-action: none;
         }
         canvas {
@@ -27,1027 +21,789 @@
             width: 100%;
             height: 100%;
         }
-        .hud-shadow {
-            text-shadow: 3px 3px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
         }
-        .btn-bounce {
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        .btn {
+            pointer-events: auto;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            background-color: #4ade80;
+            color: #111;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(74, 222, 128, 0.4);
+            transition: transform 0.1s, background-color 0.2s;
         }
-        .btn-bounce:active {
-            transform: scale(0.92);
-        }
-        .hat-card {
-            transition: all 0.2s ease;
-        }
-        .hat-card.selected {
-            border-color: #facc15;
-            background-color: rgba(250, 204, 21, 0.2);
-            transform: scale(1.05);
-        }
+        .btn:hover { background-color: #22c55e; }
+        .btn:active { transform: scale(0.95); }
+        .hidden { display: none !important; }
     </style>
 </head>
-<body class="relative text-white flex flex-col justify-between">
+<body>
 
-    <canvas id="gameCanvas" class="absolute inset-0 z-0"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
-    <div id="uiOverlay" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-6">
+    <div id="ui-layer">
+        <div id="start-screen">
+            <h1 class="text-4xl md:text-5xl font-bold mb-3 text-green-400 tracking-wider">NUTTY HEIST</h1>
+            <p class="text-xl text-yellow-300 font-semibold mb-4">Squirrel & Dame Tu Cosita's Taco Rush 🌮🐿️</p>
+            <div class="bg-black/80 p-5 rounded-xl mb-5 text-left border border-green-400 shadow-xl max-w-sm">
+                <strong class="text-green-300 text-lg">How to Play:</strong>
+                <ul class="list-disc pl-5 mt-2 space-y-1 text-sm md:text-base">
+                    <li><strong>Phase 1 (Sky):</strong> Tap/Space to fly through pipes.</li>
+                    <li><strong>Phase 2 (Ground):</strong> Drag/Move mouse to catch falling food!</li>
+                    <li><strong>Goal:</strong> Catch Tacos 🌮 & Acorns 🌰, avoid Bombs 💣!</li>
+                </ul>
+            </div>
+            <button class="btn" onclick="startGame()">Tap to Play</button>
+        </div>
         
-        <!-- Top HUD Bar -->
-        <div class="flex justify-between items-start w-full">
-            <!-- Left: Cheeks & Stash Score -->
-            <div class="flex flex-col gap-2">
-                <div class="bg-amber-900/80 backdrop-blur-md border-4 border-amber-600 rounded-2xl p-3 flex items-center gap-3 shadow-2xl pointer-events-auto">
-                    <span class="text-3xl md:text-4xl animate-bounce">🐿️</span>
-                    <div>
-                        <div class="text-xs text-amber-200 tracking-wider uppercase font-bold">Stashed Acorns</div>
-                        <div id="hudStashScore" class="text-2xl md:text-3xl text-amber-400 hud-shadow">0</div>
-                    </div>
-                </div>
-
-                <!-- Cheeks Capacity Gauge -->
-                <div class="bg-amber-950/80 border-2 border-amber-700 rounded-xl p-2 w-48 md:w-56 pointer-events-auto shadow-lg">
-                    <div class="flex justify-between text-xs font-bold mb-1 text-amber-200">
-                        <span>CHEEKS CAPACITY</span>
-                        <span id="cheekText">0 / 10</span>
-                    </div>
-                    <div class="w-full bg-amber-900/90 h-4 rounded-full overflow-hidden border border-amber-800">
-                        <div id="cheekBar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-full w-0% transition-all duration-200"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Suspicion Heat & Giga Meter -->
-            <div class="flex flex-col items-end gap-2">
-                <div class="bg-red-950/80 border-4 border-red-600 rounded-2xl p-3 flex items-center gap-3 shadow-2xl pointer-events-auto text-right">
-                    <div>
-                        <div class="text-xs text-red-200 tracking-wider uppercase font-bold">Ranger Threat</div>
-                        <div id="threatText" class="text-xl md:text-2xl text-red-400 hud-shadow">CALM</div>
-                    </div>
-                    <span id="threatIcon" class="text-3xl md:text-4xl">😴</span>
-                </div>
-
-                <!-- Threat Meter Bar -->
-                <div class="bg-red-950/80 border-2 border-red-700 rounded-xl p-2 w-48 md:w-56 pointer-events-auto shadow-lg">
-                    <div class="w-full bg-red-950 h-3 rounded-full overflow-hidden border border-red-800">
-                        <div id="threatBar" class="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 h-full w-0% transition-all duration-300"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Floating Notifications Container -->
-        <div id="toastContainer" class="self-center flex flex-col items-center gap-2 pointer-events-none mb-20"></div>
-
-        <!-- Touch Controls for Mobile (Hidden on Desktop) -->
-        <div id="mobileControls" class="flex justify-between items-end w-full pointer-events-auto md:hidden pb-4">
-            <!-- Virtual Joystick Zone -->
-            <div id="joystickZone" class="w-32 h-32 bg-white/10 border-2 border-white/20 rounded-full relative flex items-center justify-center backdrop-blur-xs">
-                <div id="joystickKnob" class="w-14 h-14 bg-amber-500/80 border-2 border-amber-300 rounded-full shadow-lg absolute"></div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex gap-3">
-                <button id="btnFart" class="btn-bounce bg-gradient-to-b from-amber-600 to-yellow-800 border-4 border-amber-300 text-white font-black rounded-2xl p-4 flex flex-col items-center justify-center shadow-2xl active:brightness-125">
-                    <span class="text-3xl">💨</span>
-                    <span class="text-xs mt-1">FART BOOST</span>
-                </button>
-                <button id="btnSpit" class="btn-bounce bg-gradient-to-b from-orange-500 to-red-700 border-4 border-orange-300 text-white font-black rounded-2xl p-4 flex flex-col items-center justify-center shadow-2xl active:brightness-125">
-                    <span class="text-3xl">🌰</span>
-                    <span class="text-xs mt-1">SPIT NUT</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="startModal" class="absolute inset-0 z-20 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-gradient-to-b from-amber-900 via-amber-950 to-stone-900 border-8 border-amber-600 rounded-3xl p-6 md:p-8 max-w-lg w-full text-center shadow-2xl relative overflow-hidden">
-            <!-- Decorative Banner -->
-            <div class="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl"></div>
-            <div class="text-6xl my-2 animate-bounce">🐿️👓</div>
-            <h1 class="text-4xl md:text-5xl font-black text-amber-400 hud-shadow tracking-wider uppercase mb-2">NUTTY HEIST</h1>
-            <p class="text-amber-200 text-sm md:text-base font-bold mb-6">PARK PICNIC CHAOS</p>
-
-            <div class="bg-black/40 border border-amber-700/50 rounded-2xl p-4 text-left text-xs md:text-sm text-amber-100 space-y-2 mb-6">
-                <p>📍 <strong>OBJECTIVE:</strong> Raid picnic blankets, stuff your cheeks with loot (Acorns 🌰, Pizza 🍕, Donuts 🍩), and stash them back at the Big Oak Tree 🌳!</p>
-                <p>⚠️ <strong>BEWARE:</strong> Angry Park Rangers 👮, Chonky Dogs 🐶, and Lawnmowers 🚜 will hunt you!</p>
-                <p>🎮 <strong>DESKTOP CONTROLS:</strong> Move with <kbd class="bg-amber-800 px-1 rounded">WASD</kbd> or <kbd class="bg-amber-800 px-1 rounded">Arrows</kbd>. Press <kbd class="bg-amber-800 px-1 rounded">SPACE</kbd> for <strong>Fart Boost</strong> 💨 & <kbd class="bg-amber-800 px-1 rounded">E</kbd> or <kbd class="bg-amber-800 px-1 rounded">CLICK</kbd> to <strong>Spit Nut</strong> 🌰!</p>
-            </div>
-
-            <!-- Hat Customizer Selector -->
-            <div class="mb-6">
-                <div class="text-xs font-bold text-amber-300 uppercase mb-2">Select Secret Agent Hat:</div>
-                <div class="grid grid-cols-4 gap-2" id="hatSelector">
-                    <!-- Injected by JS -->
-                </div>
-            </div>
-
-            <button onclick="Game.start()" class="btn-bounce w-full py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 border-4 border-amber-300 text-stone-950 font-black text-2xl md:text-3xl rounded-2xl shadow-2xl hover:brightness-110 active:scale-95 uppercase tracking-wide">
-                START RAID 🌰!
-            </button>
-        </div>
-    </div>
-
-    <div id="gameOverModal" class="absolute inset-0 z-20 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
-        <div class="bg-gradient-to-b from-stone-900 via-stone-950 to-black border-8 border-red-600 rounded-3xl p-6 md:p-8 max-w-md w-full text-center shadow-2xl">
-            <div class="text-6xl my-2">💥🐿️💨</div>
-            <h2 id="goTitle" class="text-3xl md:text-4xl font-black text-red-500 hud-shadow mb-2">BROWNED OUT!</h2>
-            <p id="goReason" class="text-stone-300 text-sm mb-6">The Park Ranger put you in squirrel jail!</p>
-
-            <div class="bg-stone-900/90 border border-stone-800 rounded-2xl p-4 mb-6">
-                <div class="flex justify-between items-center py-1 border-b border-stone-800">
-                    <span class="text-stone-400 text-sm">Total Stashed Loot:</span>
-                    <span id="goScore" class="text-amber-400 font-bold text-xl">0</span>
-                </div>
-                <div class="flex justify-between items-center py-1 border-b border-stone-800">
-                    <span class="text-stone-400 text-sm">Picnics Raided:</span>
-                    <span id="goPicnics" class="text-amber-400 font-bold text-xl">0</span>
-                </div>
-                <div class="flex justify-between items-center py-1">
-                    <span class="text-stone-400 text-sm">Fart Boosts Used:</span>
-                    <span id="goFarts" class="text-amber-400 font-bold text-xl">0</span>
-                </div>
-            </div>
-
-            <button onclick="Game.start()" class="btn-bounce w-full py-4 bg-gradient-to-r from-red-600 to-amber-600 border-4 border-orange-400 text-white font-black text-2xl rounded-2xl shadow-2xl hover:brightness-110 uppercase">
-                TRY AGAIN 🔄
-            </button>
+        <div id="game-over-screen" class="hidden">
+            <h1 id="go-title" class="text-4xl md:text-5xl font-bold mb-2 text-red-500">Game Over!</h1>
+            <p id="go-score" class="text-2xl mb-6 text-yellow-300">Tacos & Acorns Caught: 0</p>
+            <button class="btn" onclick="startGame()">Play Again</button>
         </div>
     </div>
 
     <script>
-        const Sound = {
-            ctx: null,
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            },
-            playSqueak() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.12);
-                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.12);
-            },
-            playChomp() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.08);
-                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.08);
-            },
-            playFart() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(140, this.ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.25);
-                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.25);
-            },
-            playStash() {
-                if (!this.ctx) return;
-                const now = this.ctx.currentTime;
-                [400, 550, 700, 880].forEach((freq, idx) => {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-                    gain.gain.setValueAtTime(0.25, now + idx * 0.06);
-                    gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.06 + 0.1);
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start(now + idx * 0.06);
-                    osc.stop(now + idx * 0.06 + 0.1);
-                });
-            },
-            playSpit() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(350, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.1);
-            },
-            playGiga() {
-                if (!this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.5);
-                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.5);
-            }
-        };
-
-        const Hats = [
-            { id: 'sunglasses', icon: '🕶️', name: 'Agent Shades' },
-            { id: 'viking', icon: '🪖', name: 'Viking Nut' },
-            { id: 'propeller', icon: '🚁', name: 'Propeller Beanie' },
-            { id: 'crown', icon: '👑', name: 'Acorn King' }
-        ];
-        let selectedHat = 'sunglasses';
-
-        function renderHatSelector() {
-            const container = document.getElementById('hatSelector');
-            container.innerHTML = Hats.map(hat => `
-                <div onclick="selectHat('${hat.id}')" class="hat-card ${selectedHat === hat.id ? 'selected' : ''} bg-black/40 border-2 border-amber-800 rounded-xl p-2 cursor-pointer flex flex-col items-center justify-center pointer-events-auto hover:bg-amber-900/40">
-                    <span class="text-2xl">${hat.icon}</span>
-                    <span class="text-[10px] text-amber-200 mt-1 font-bold truncate">${hat.name}</span>
-                </div>
-            `).join('');
-        }
-
-        function selectHat(id) {
-            selectedHat = id;
-            renderHatSelector();
-            Sound.init();
-            Sound.playSqueak();
-        }
-
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        let GAME_WIDTH = window.innerWidth;
+        let GAME_HEIGHT = window.innerHeight;
+        let GROUND_Y = 4000;
+        
+        let state = 'TITLE';
+        let time = 0;
+        let cameraY = 0;
 
-        const WORLD_SIZE = 2600;
+        let bird = { x: 100, y: GAME_HEIGHT/2, vy: 0, radius: 15, frozen: false };
+        let pipes = [];
+        let flappyScore = 0;
+        const GRAVITY = 0.4;
+        const JUMP = -8;
+        const PIPE_SPEED = 3;
+        const PIPE_WIDTH = 70;
+        const PIPE_GAP = 180;
+        const FLAPPY_WIN_SCORE = 3;
 
-        const Game = {
-            active: false,
-            time: 0,
-            camera: { x: 0, y: 0 },
-            keys: {},
-            touchVector: { x: 0, y: 0 },
+        let unusualPoop = { x: 0, y: 0, vy: 0, type: '🌮' };
+        let particles = [];
+        let clouds = [];
+
+        let alien = { x: GAME_WIDTH / 2 - 30, y: GROUND_Y - 100, width: 40 };
+        let squirrel = { x: GAME_WIDTH / 2 + 30, y: GROUND_Y - 50 };
+        
+        let items = [];
+        let catcherScore = 0;
+        let catcherLives = 3;
+        let spawnTimer = 0;
+        let catcherDifficulty = 1;
+        let targetAlienX = GAME_WIDTH / 2;
+
+        let eatingTimer = 0;
+        let chompTexts = [];
+        let flyingTacos = [];
+
+        window.addEventListener('resize', () => {
+            GAME_WIDTH = window.innerWidth;
+            GAME_HEIGHT = window.innerHeight;
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+            if(state === 'CATCHER' || state === 'EATING_ANIMATION' || state === 'GAMEOVER') {
+                cameraY = GROUND_Y - GAME_HEIGHT;
+            }
+        });
+        window.dispatchEvent(new Event('resize'));
+
+        function handlePointerDown(e) {
+            if (state === 'FLAPPY' && !bird.frozen) {
+                bird.vy = JUMP;
+            }
+            updatePointer(e);
+        }
+
+        function handlePointerMove(e) { updatePointer(e); }
+
+        function updatePointer(e) {
+            if (state === 'CATCHER') {
+                let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                targetAlienX = clientX;
+            }
+        }
+
+        window.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('touchstart', handlePointerDown, {passive: false});
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('touchmove', handlePointerMove, {passive: false});
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && state === 'FLAPPY' && !bird.frozen) {
+                bird.vy = JUMP;
+            }
+        });
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-over-screen').classList.add('hidden');
             
-            // Stats
-            stashedAcorns: 0,
-            picnicsRaided: 0,
-            fartsUsed: 0,
-            threatLevel: 0, // 0 to 100
+            bird = { x: GAME_WIDTH/3, y: GAME_HEIGHT/2, vy: 0, radius: 15, frozen: false };
+            pipes = [];
+            flappyScore = 0;
+            cameraY = 0;
+            particles = [];
+            
+            items = [];
+            catcherScore = 0;
+            catcherLives = 3;
+            spawnTimer = 0;
+            catcherDifficulty = 1;
+            targetAlienX = GAME_WIDTH / 2;
+            alien.x = targetAlienX - 30;
+            squirrel.x = targetAlienX + 30;
 
-            // Entities
-            player: null,
-            treehouse: { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 120 },
-            picnics: [],
-            items: [],
-            enemies: [],
-            projectiles: [],
-            particles: [],
+            eatingTimer = 0;
+            chompTexts = [];
+            flyingTacos = [];
 
-            init() {
-                this.resize();
-                window.addEventListener('resize', () => this.resize());
-                this.setupControls();
-                renderHatSelector();
-            },
-
-            resize() {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            },
-
-            setupControls() {
-                window.addEventListener('keydown', e => {
-                    this.keys[e.code] = true;
-                    if (e.code === 'Space' && this.active) {
-                        e.preventDefault();
-                        this.player.fartBoost();
-                    }
-                    if ((e.code === 'KeyE' || e.code === 'KeyF') && this.active) {
-                        e.preventDefault();
-                        this.player.spitNut();
-                    }
+            clouds = [];
+            for (let i = 0; i < 15; i++) {
+                clouds.push({
+                    x: Math.random() * GAME_WIDTH,
+                    y: Math.random() * GAME_HEIGHT * 0.7,
+                    speed: Math.random() * 0.5 + 0.1,
+                    scale: Math.random() * 0.5 + 0.5
                 });
-                window.addEventListener('keyup', e => {
-                    this.keys[e.code] = false;
-                });
+            }
 
-                // Mouse click to spit nut
-                canvas.addEventListener('mousedown', e => {
-                    if (this.active && e.button === 0) {
-                        this.player.spitNut();
+            state = 'FLAPPY';
+            spawnPipe();
+        }
+
+        function gameOver(reason) {
+            state = 'EATING_ANIMATION';
+            eatingTimer = 0;
+            alien.x = GAME_WIDTH / 2 - 40;
+            squirrel.x = GAME_WIDTH / 2 + 40;
+            chompTexts = [];
+            flyingTacos = [];
+            
+            document.getElementById('go-title').innerText = reason;
+            document.getElementById('go-score').innerText = `Total Score: ${catcherScore}`;
+
+            setTimeout(() => {
+                if (state === 'EATING_ANIMATION') {
+                    document.getElementById('game-over-screen').classList.remove('hidden');
+                }
+            }, 2000);
+        }
+
+        function update() {
+            time++;
+
+            clouds.forEach(c => {
+                c.x -= c.speed;
+                if (c.x + 200 < 0) {
+                    c.x = GAME_WIDTH + 100;
+                    c.y = Math.random() * GAME_HEIGHT * 0.7;
+                }
+            });
+
+            if (state === 'FLAPPY') {
+                if (!bird.frozen) {
+                    bird.vy += GRAVITY;
+                    bird.y += bird.vy;
+
+                    if (pipes.length === 0 || pipes[pipes.length - 1].x < GAME_WIDTH - 250) {
+                        spawnPipe();
                     }
-                });
 
-                // Virtual Joystick Setup for Mobile
-                const joyZone = document.getElementById('joystickZone');
-                const joyKnob = document.getElementById('joystickKnob');
-                let joyTouchId = null;
-                let joyCenter = { x: 0, y: 0 };
+                    for (let i = pipes.length - 1; i >= 0; i--) {
+                        let p = pipes[i];
+                        p.x -= PIPE_SPEED;
 
-                joyZone.addEventListener('touchstart', e => {
-                    if (!this.active) return;
-                    const touch = e.changedTouches[0];
-                    joyTouchId = touch.identifier;
-                    const rect = joyZone.getBoundingClientRect();
-                    joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-                    this.updateJoystick(touch);
-                }, { passive: false });
+                        if (!p.passed && p.x + PIPE_WIDTH < bird.x) {
+                            p.passed = true;
+                            flappyScore++;
+                            if (flappyScore >= FLAPPY_WIN_SCORE) {
+                                triggerTransition();
+                            }
+                        }
 
-                window.addEventListener('touchmove', e => {
-                    if (joyTouchId === null) return;
-                    for (let i = 0; i < e.changedTouches.length; i++) {
-                        if (e.changedTouches[i].identifier === joyTouchId) {
-                            this.updateJoystick(e.changedTouches[i]);
-                            break;
+                        if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + PIPE_WIDTH) {
+                            if (bird.y - bird.radius < p.topHeight || bird.y + bird.radius > p.topHeight + PIPE_GAP) {
+                                startGame();
+                            }
+                        }
+
+                        if (p.x + PIPE_WIDTH < 0) {
+                            pipes.splice(i, 1);
                         }
                     }
-                }, { passive: false });
 
-                const endTouch = e => {
-                    for (let i = 0; i < e.changedTouches.length; i++) {
-                        if (e.changedTouches[i].identifier === joyTouchId) {
-                            joyTouchId = null;
-                            this.touchVector = { x: 0, y: 0 };
-                            joyKnob.style.transform = `translate(0px, 0px)`;
-                            break;
-                        }
+                    if (bird.y + bird.radius > GAME_HEIGHT || bird.y - bird.radius < 0) {
+                        startGame();
                     }
-                };
-                window.addEventListener('touchend', endTouch);
-                window.addEventListener('touchcancel', endTouch);
-
-                // Action Buttons
-                document.getElementById('btnFart').addEventListener('click', () => {
-                    if (this.active) this.player.fartBoost();
-                });
-                document.getElementById('btnSpit').addEventListener('click', () => {
-                    if (this.active) this.player.spitNut();
-                });
-            },
-
-            updateJoystick(touch) {
-                const maxRadius = 45;
-                const dx = touch.clientX - joyCenter.x;
-                const dy = touch.clientY - joyCenter.y;
-                const dist = Math.hypot(dx, dy);
-                const angle = Math.atan2(dy, dx);
-
-                const clampedDist = Math.min(dist, maxRadius);
-                const knobX = Math.cos(angle) * clampedDist;
-                const knobY = Math.sin(angle) * clampedDist;
-
-                document.getElementById('joystickKnob').style.transform = `translate(${knobX}px, ${knobY}px)`;
-                this.touchVector = { x: Math.cos(angle) * (clampedDist / maxRadius), y: Math.sin(angle) * (clampedDist / maxRadius) };
-            },
-
-            start() {
-                Sound.init();
-                Sound.playSqueak();
-
-                document.getElementById('startModal').classList.add('hidden');
-                document.getElementById('gameOverModal').classList.add('hidden');
-
-                this.stashedAcorns = 0;
-                this.picnicsRaided = 0;
-                this.fartsUsed = 0;
-                this.threatLevel = 0;
-                this.time = 0;
-
-                // Create Player
-                this.player = new Player(WORLD_SIZE / 2, WORLD_SIZE / 2 + 200);
-
-                // Generate Park World Objects
-                this.generateParkWorld();
-
-                this.active = true;
-                this.updateHUD();
-                this.showToast('🌳 STASH YOUR LOOT AT THE BIG OAK TREE!');
-            },
-
-            generateParkWorld() {
-                this.picnics = [];
-                this.items = [];
-                this.enemies = [];
-                this.projectiles = [];
-                this.particles = [];
-
-                // Spawn Picnic Blankets scattered around
-                const picnicCount = 12;
-                for (let i = 0; i < picnicCount; i++) {
-                    let px, py, valid = false;
-                    while (!valid) {
-                        px = Math.random() * (WORLD_SIZE - 400) + 200;
-                        py = Math.random() * (WORLD_SIZE - 400) + 200;
-                        const distToTree = Math.hypot(px - this.treehouse.x, py - this.treehouse.y);
-                        if (distToTree > 300) valid = true;
-                    }
-                    this.picnics.push(new Picnic(px, py));
                 }
-
-                // Initial Enemies
-                this.spawnEnemy('ranger');
-                this.spawnEnemy('ranger');
-                this.spawnEnemy('pug');
-                this.spawnEnemy('pug');
-                this.spawnEnemy('mower');
-            },
-
-            spawnEnemy(type) {
-                let x = Math.random() * WORLD_SIZE;
-                let y = Math.random() * WORLD_SIZE;
-                this.enemies.push(new Enemy(x, y, type));
-            },
-
-            update() {
-                if (!this.active) return;
-                this.time++;
-
-                this.player.update();
-
-                // Camera follow player
-                this.camera.x = this.player.x - canvas.width / 2;
-                this.camera.y = this.player.y - canvas.height / 2;
-
-                // Update Items
-                this.items.forEach(item => item.update());
-
-                // Update Enemies
-                this.enemies.forEach(enemy => enemy.update());
-
-                // Update Projectiles
-                for (let i = this.projectiles.length - 1; i >= 0; i--) {
-                    let p = this.projectiles[i];
-                    p.update();
-                    if (p.dead) this.projectiles.splice(i, 1);
-                }
-
-                // Update Particles
-                for (let i = this.particles.length - 1; i >= 0; i--) {
-                    let pt = this.particles[i];
-                    pt.update();
-                    if (pt.dead) this.particles.splice(i, 1);
-                }
-
-                // Check Treehouse Stash Interaction
-                const distToTree = Math.hypot(this.player.x - this.treehouse.x, this.player.y - this.treehouse.y);
-                if (distToTree < this.treehouse.radius + this.player.radius && this.player.cheeks.length > 0) {
-                    let scoreAdded = 0;
-                    this.player.cheeks.forEach(item => {
-                        scoreAdded += item.value;
+            } 
+            else if (state === 'TRANSITION') {
+                unusualPoop.vy += 0.2;
+                unusualPoop.y += unusualPoop.vy;
+                
+                if (time % 2 === 0) {
+                    particles.push({
+                        x: unusualPoop.x + (Math.random() - 0.5) * 20,
+                        y: unusualPoop.y,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: (Math.random() - 0.5) * 2,
+                        life: 30,
+                        maxLife: 30
                     });
-                    this.stashedAcorns += scoreAdded;
-                    this.player.cheeks = [];
-                    Sound.playStash();
-                    this.showToast(`✨ STASHED +${scoreAdded} LOOT!`);
-                    
-                    // Reduce threat level on successful stash
-                    this.threatLevel = Math.max(0, this.threatLevel - 15);
-                    this.updateHUD();
+                }
 
-                    // Spawn golden particles around tree
-                    for (let i = 0; i < 30; i++) {
-                        this.particles.push(new Particle(this.treehouse.x, this.treehouse.y, '#facc15', 8));
+                let targetCameraY = unusualPoop.y - GAME_HEIGHT / 2;
+                if (targetCameraY > GROUND_Y - GAME_HEIGHT) {
+                    targetCameraY = GROUND_Y - GAME_HEIGHT;
+                }
+                cameraY += (targetCameraY - cameraY) * 0.1;
+
+                if (unusualPoop.y > GROUND_Y - 50) {
+                    state = 'CATCHER';
+                    createExplosion(unusualPoop.x, GROUND_Y - 50, '#FFD700');
+                }
+            } 
+            else if (state === 'CATCHER') {
+                cameraY = GROUND_Y - GAME_HEIGHT;
+                
+                alien.x += (targetAlienX - 30 - alien.x) * 0.2;
+                squirrel.x += (targetAlienX + 40 - squirrel.x) * 0.25;
+
+                if (alien.x < 30) alien.x = 30;
+                if (alien.x > GAME_WIDTH - 80) alien.x = GAME_WIDTH - 80;
+
+                spawnTimer++;
+                if (spawnTimer > 50 / catcherDifficulty) {
+                    spawnTimer = 0;
+                    let r = Math.random();
+                    let itemType = '🌮';
+                    if (r > 0.7) itemType = '💣';
+                    else if (r > 0.4) itemType = '🌰';
+
+                    items.push({
+                        x: Math.random() * (GAME_WIDTH - 60) + 30,
+                        y: cameraY - 50,
+                        vy: (Math.random() * 3 + 4) * catcherDifficulty,
+                        type: itemType,
+                        rotation: Math.random() * Math.PI * 2,
+                        rotSpeed: (Math.random() - 0.5) * 0.2
+                    });
+                    catcherDifficulty += 0.015;
+                }
+
+                for (let i = items.length - 1; i >= 0; i--) {
+                    let item = items[i];
+                    item.y += item.vy;
+                    item.rotation += item.rotSpeed;
+
+                    if (item.y > GROUND_Y - 20) {
+                        if (item.type !== '💣') {
+                            catcherLives--;
+                            createExplosion(item.x, item.y, '#ff4444');
+                            if (catcherLives <= 0) gameOver("Out of food! You lost!");
+                        }
+                        items.splice(i, 1);
+                        continue;
+                    }
+
+                    // Check catch by alien OR squirrel
+                    let dxA = item.x - alien.x;
+                    let dyA = item.y - (alien.y - 60);
+                    let distA = Math.sqrt(dxA*dxA + dyA*dyA);
+
+                    let dxS = item.x - squirrel.x;
+                    let dyS = item.y - (GROUND_Y - 40);
+                    let distS = Math.sqrt(dxS*dxS + dyS*dyS);
+
+                    if (distA < 45 || distS < 40) {
+                        if (item.type === '💣') {
+                            createExplosion(item.x, item.y, '#FF0000');
+                            gameOver("BOOM! You caught a bomb!");
+                        } else {
+                            catcherScore += (item.type === '🌰' ? 2 : 1);
+                            createExplosion(item.x, item.y, item.type === '🌰' ? '#d97706' : '#FFD700');
+                        }
+                        items.splice(i, 1);
+                    }
+                }
+            }
+            else if (state === 'EATING_ANIMATION') {
+                cameraY = GROUND_Y - GAME_HEIGHT;
+                eatingTimer++;
+
+                if (eatingTimer % 10 === 0) {
+                    let isSquirrelTarget = Math.random() > 0.5;
+                    flyingTacos.push({
+                        x: GAME_WIDTH/2 + (Math.random() - 0.5) * 100,
+                        y: GROUND_Y - 15,
+                        targetX: isSquirrelTarget ? squirrel.x : alien.x,
+                        targetY: isSquirrelTarget ? GROUND_Y - 50 : GROUND_Y - 185,
+                        progress: 0,
+                        speed: 0.12,
+                        type: Math.random() > 0.5 ? '🌮' : '🌰'
+                    });
+                }
+
+                for (let i = flyingTacos.length - 1; i >= 0; i--) {
+                    let ft = flyingTacos[i];
+                    ft.progress += ft.speed;
+                    if (ft.progress >= 1) {
+                        spawnFoodCrumbs(ft.targetX, ft.targetY);
+                        flyingTacos.splice(i, 1);
                     }
                 }
 
-                // Threat Decay / Spawn Enemies based on threat
-                if (this.time % 300 === 0 && this.threatLevel < 100) {
-                    this.threatLevel = Math.min(100, this.threatLevel + 2);
-                    this.updateHUD();
+                if (eatingTimer % 20 === 0) {
+                    const words = ["ZHADNO!! 🌮", "NOM NOM!", "CHOMP!", "NUTTY!! 🌰", "MORE TACOS!", "GLUTTONS!"];
+                    let randomWord = words[Math.floor(Math.random() * words.length)];
+                    chompTexts.push({
+                        text: randomWord,
+                        x: GAME_WIDTH/2 + (Math.random() - 0.5) * 180,
+                        y: GROUND_Y - 180,
+                        vy: -2,
+                        alpha: 1,
+                        scale: Math.random() * 0.4 + 0.9
+                    });
                 }
 
-                if (this.time % 600 === 0 && this.enemies.length < 15) {
-                    this.spawnEnemy(Math.random() > 0.5 ? 'ranger' : 'pug');
+                for (let i = chompTexts.length - 1; i >= 0; i--) {
+                    let ct = chompTexts[i];
+                    ct.y += ct.vy;
+                    ct.alpha -= 0.02;
+                    if (ct.alpha <= 0) chompTexts.splice(i, 1);
                 }
-            },
+            }
 
-            showToast(text) {
-                const container = document.getElementById('toastContainer');
-                const toast = document.createElement('div');
-                toast.className = "bg-amber-500 text-stone-950 font-black px-4 py-2 rounded-2xl border-2 border-amber-200 shadow-2xl text-sm md:text-base animate-bounce";
-                toast.innerText = text;
-                container.appendChild(toast);
-                setTimeout(() => toast.remove(), 2500);
-            },
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+        }
 
-            updateHUD() {
-                document.getElementById('hudStashScore').innerText = this.stashedAcorns;
-                document.getElementById('cheekText').innerText = `${this.player.cheeks.length} / ${this.player.maxCheeks}`;
-                const cheekPct = (this.player.cheeks.length / this.player.maxCheeks) * 100;
-                document.getElementById('cheekBar').style.width = `${cheekPct}%`;
+        function draw() {
+            let depthFactor = cameraY / (GROUND_Y - GAME_HEIGHT);
+            if (depthFactor < 0) depthFactor = 0;
+            if (depthFactor > 1) depthFactor = 1;
 
-                document.getElementById('threatBar').style.width = `${this.threatLevel}%`;
-                
-                let icon = '😴';
-                let text = 'CALM';
-                if (this.threatLevel > 75) { icon = '🚨'; text = 'SWAT RANGERS!'; }
-                else if (this.threatLevel > 40) { icon = '🐕'; text = 'HIGH ALERT'; }
-                else if (this.threatLevel > 15) { icon = '👀'; text = 'SUSPICIOUS'; }
-                
-                document.getElementById('threatIcon').innerText = icon;
-                document.getElementById('threatText').innerText = text;
-            },
+            let topColor = interpolateColor('#5bb6ff', '#020212', depthFactor);
+            let bottomColor = interpolateColor('#bde1ff', '#0a0510', depthFactor);
 
-            gameOver(reason) {
-                this.active = false;
-                Sound.playFart();
-                document.getElementById('goTitle').innerText = "CAUGHT RED-HANDED!";
-                document.getElementById('goReason').innerText = reason;
-                document.getElementById('goScore').innerText = this.stashedAcorns;
-                document.getElementById('goPicnics').innerText = this.picnicsRaided;
-                document.getElementById('goFarts').innerText = this.fartsUsed;
-                document.getElementById('gameOverModal').classList.remove('hidden');
-            },
+            let bgGradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+            bgGradient.addColorStop(0, topColor);
+            bgGradient.addColorStop(1, bottomColor);
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-            draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(0, -cameraY);
 
-                ctx.save();
-                ctx.translate(-this.camera.x, -this.camera.y);
+            if (cameraY < GAME_HEIGHT) drawClouds();
 
-                // Draw Park Grass Background Grid
-                ctx.fillStyle = '#2d5a27';
-                ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+            let soilGrad = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 500);
+            soilGrad.addColorStop(0, '#3d2616');
+            soilGrad.addColorStop(1, '#170e08');
+            ctx.fillStyle = soilGrad;
+            ctx.fillRect(0, GROUND_Y, GAME_WIDTH, 500);
 
-                // Grass Blades / Flower Details
-                ctx.fillStyle = '#24481f';
-                for (let x = 0; x < WORLD_SIZE; x += 120) {
-                    for (let y = 0; y < WORLD_SIZE; y += 120) {
-                        ctx.beginPath();
-                        ctx.arc(x + 20, y + 20, 15, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
+            let grassGrad = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 25);
+            grassGrad.addColorStop(0, '#2fb835');
+            grassGrad.addColorStop(1, '#1b5e20');
+            ctx.fillStyle = grassGrad;
+            ctx.fillRect(0, GROUND_Y, GAME_WIDTH, 25);
 
-                // World Boundary Fence
-                ctx.strokeStyle = '#b45309';
-                ctx.lineWidth = 12;
-                ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
-
-                // Draw Treehouse Safezone
-                ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                ctx.beginPath();
-                ctx.arc(this.treehouse.x + 10, this.treehouse.y + 15, this.treehouse.radius + 10, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Big Oak Tree
-                ctx.fillStyle = '#15803d';
-                ctx.beginPath();
-                ctx.arc(this.treehouse.x, this.treehouse.y, this.treehouse.radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#78350f';
-                ctx.beginPath();
-                ctx.arc(this.treehouse.x, this.treehouse.y, 40, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.fillStyle = '#facc15';
-                ctx.font = 'bold 36px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('🌳 SAFE', this.treehouse.x, this.treehouse.y);
-
-                // Draw Picnics
-                this.picnics.forEach(p => p.draw());
-
-                // Draw Items
-                this.items.forEach(i => i.draw());
-
-                // Draw Enemies
-                this.enemies.forEach(e => e.draw());
-
-                // Draw Projectiles
-                this.projectiles.forEach(p => p.draw());
-
-                // Draw Player
-                this.player.draw();
-
-                // Draw Particles
-                this.particles.forEach(p => p.draw());
-
-                ctx.restore();
-
-                requestAnimationFrame(() => {
-                    Game.update();
-                    Game.draw();
+            if (state === 'FLAPPY' || state === 'TRANSITION') {
+                pipes.forEach(p => {
+                    drawRealisticPipe(p.x, 0, p.topHeight, true);
+                    drawRealisticPipe(p.x, p.topHeight + PIPE_GAP, GROUND_Y - (p.topHeight + PIPE_GAP), false);
                 });
-            }
-        };
-
-        class Player {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.radius = 22;
-                this.angle = 0;
-                this.speed = 5.5;
-                this.cheeks = [];
-                this.maxCheeks = 10;
-                this.fartCooldown = 0;
-                this.gigaMode = false;
-                this.gigaTimer = 0;
+                drawRealisticBird(bird.x, bird.y, bird.vy, bird.frozen);
             }
 
-            update() {
-                let dx = 0;
-                let dy = 0;
+            if (state === 'TRANSITION' || state === 'CATCHER') {
+                if (state === 'TRANSITION') drawRealisticTaco(unusualPoop.x, unusualPoop.y, time * 0.1);
 
-                // Keyboard
-                if (Game.keys['KeyW'] || Game.keys['ArrowUp']) dy -= 1;
-                if (Game.keys['KeyS'] || Game.keys['ArrowDown']) dy += 1;
-                if (Game.keys['KeyA'] || Game.keys['ArrowLeft']) dx -= 1;
-                if (Game.keys['KeyD'] || Game.keys['ArrowRight']) dx += 1;
-
-                // Joystick override
-                if (Game.touchVector.x !== 0 || Game.touchVector.y !== 0) {
-                    dx = Game.touchVector.x;
-                    dy = Game.touchVector.y;
+                if (cameraY >= GROUND_Y - GAME_HEIGHT - 200) {
+                    drawAlien(alien.x, alien.y, time);
+                    drawSquirrel(squirrel.x, GROUND_Y - 25, 1, time);
                 }
 
-                // Speed penalty when cheeks are stuffed
-                const cheekWeight = (this.cheeks.length / this.maxCheeks) * 0.35;
-                let currentSpeed = this.speed * (1 - cheekWeight);
-                if (this.gigaMode) currentSpeed *= 1.6;
-
-                if (dx !== 0 || dy !== 0) {
-                    const norm = Math.hypot(dx, dy);
-                    this.x += (dx / (norm || 1)) * currentSpeed;
-                    this.y += (dy / (norm || 1)) * currentSpeed;
-                    this.angle = Math.atan2(dy, dx);
-                }
-
-                // World bounds
-                this.x = Math.max(30, Math.min(WORLD_SIZE - 30, this.x));
-                this.y = Math.max(30, Math.min(WORLD_SIZE - 30, this.y));
-
-                // Cooldowns
-                if (this.fartCooldown > 0) this.fartCooldown--;
-
-                if (this.gigaMode) {
-                    this.gigaTimer--;
-                    if (this.gigaTimer <= 0) this.gigaMode = false;
-                }
-            }
-
-            fartBoost() {
-                if (this.fartCooldown > 0) return;
-                this.fartCooldown = 90; // 1.5s
-                Game.fartsUsed++;
-                Sound.playFart();
-
-                // Fart thrust vector (opposite to facing direction)
-                const thrustX = Math.cos(this.angle) * 160;
-                const thrustY = Math.sin(this.angle) * 160;
-                this.x += thrustX;
-                this.y += thrustY;
-
-                // Fart Cloud Particles & Stun Enemies
-                for (let i = 0; i < 25; i++) {
-                    Game.particles.push(new Particle(
-                        this.x - Math.cos(this.angle) * 30,
-                        this.y - Math.sin(this.angle) * 30,
-                        '#854d0e',
-                        12
-                    ));
-                }
-
-                // Stun nearby enemies
-                Game.enemies.forEach(e => {
-                    const d = Math.hypot(e.x - this.x, e.y - this.y);
-                    if (d < 150) e.stunned = 120; // Stun 2s
+                items.forEach(item => {
+                    if (item.type === '🌮') drawRealisticTaco(item.x, item.y, item.rotation);
+                    else if (item.type === '🌰') drawAcorn(item.x, item.y, item.rotation);
+                    else drawRealisticBomb(item.x, item.y, item.rotation);
                 });
             }
 
-            spitNut() {
-                if (this.cheeks.length === 0) {
-                    Game.showToast('⚠️ NO ACORNS IN CHEEKS TO SPIT!');
-                    return;
-                }
-                const nut = this.cheeks.pop();
-                Game.updateHUD();
-                Sound.playSpit();
+            if (state === 'EATING_ANIMATION') {
+                drawTacoPile(GAME_WIDTH / 2, GROUND_Y - 5);
 
-                Game.projectiles.push(new Projectile(this.x, this.y, this.angle, nut));
-            }
+                flyingTacos.forEach(ft => {
+                    let curX = ft.x + (ft.targetX - ft.x) * ft.progress;
+                    let curY = ft.y + (ft.targetY - ft.y) * ft.progress;
+                    if (ft.type === '🌮') drawRealisticTaco(curX, curY, ft.progress * Math.PI * 4);
+                    else drawAcorn(curX, curY, ft.progress * Math.PI * 4);
+                });
 
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
+                drawGreedyAlien(alien.x, GROUND_Y - 90, time);
+                drawGreedySquirrel(squirrel.x, GROUND_Y - 30, time);
 
-                if (this.gigaMode) {
-                    ctx.scale(1.8, 1.8);
-                    ctx.shadowBlur = 25;
-                    ctx.shadowColor = '#facc15';
-                }
-
-                ctx.rotate(this.angle);
-
-                // Fluffy Tail
-                ctx.fillStyle = '#b45309';
-                ctx.beginPath();
-                ctx.ellipse(-25, 0, 18, 12, Math.PI / 6, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Main Body
-                ctx.fillStyle = '#d97706';
-                ctx.beginPath();
-                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Puffed Cheeks (Expands with stuffed loot!)
-                const cheekScale = 1 + (this.cheeks.length / this.maxCheeks) * 0.8;
-                ctx.fillStyle = '#f59e0b';
-                ctx.beginPath();
-                ctx.arc(8, -12 * cheekScale, 8 * cheekScale, 0, Math.PI * 2);
-                ctx.arc(8, 12 * cheekScale, 8 * cheekScale, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Eyes
-                ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(10, -6, 3, 0, Math.PI * 2);
-                ctx.arc(10, 6, 3, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Draw Selected Hat
-                const hatObj = Hats.find(h => h.id === selectedHat);
-                if (hatObj) {
-                    ctx.font = '22px sans-serif';
+                chompTexts.forEach(ct => {
+                    ctx.save();
+                    ctx.translate(ct.x, ct.y);
+                    ctx.scale(ct.scale, ct.scale);
+                    ctx.font = 'bold 32px Arial';
+                    ctx.fillStyle = `rgba(250, 204, 21, ${ct.alpha})`;
+                    ctx.strokeStyle = `rgba(0, 0, 0, ${ct.alpha})`;
+                    ctx.lineWidth = 4;
                     ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(hatObj.icon, 2, -14);
-                }
-
-                ctx.restore();
-            }
-        }
-
-        class Picnic {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.width = 160;
-                this.height = 120;
-                this.color = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6'][Math.floor(Math.random() * 4)];
-                this.spawnLoot();
-            }
-
-            spawnLoot() {
-                const lootTypes = [
-                    { name: 'Acorn', emoji: '🌰', value: 10 },
-                    { name: 'Pizza', emoji: '🍕', value: 30 },
-                    { name: 'Donut', emoji: '🍩', value: 25 },
-                    { name: 'Taco', emoji: '🌮', value: 35 },
-                    { name: 'Rainbow Golden Acorn', emoji: '🌟', value: 100, isGiga: true }
-                ];
-
-                for (let i = 0; i < 4; i++) {
-                    const isGolden = Math.random() < 0.08;
-                    const loot = isGolden ? lootTypes[4] : lootTypes[Math.floor(Math.random() * 4)];
-                    const ix = this.x + (Math.random() - 0.5) * (this.width - 30);
-                    const iy = this.y + (Math.random() - 0.5) * (this.height - 30);
-                    Game.items.push(new LootItem(ix, iy, loot, this));
-                }
-            }
-
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-
-                // Checkerboard Blanket
-                ctx.fillStyle = this.color;
-                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-
-                ctx.fillStyle = '#ffffff';
-                for (let x = -this.width / 2; x < this.width / 2; x += 40) {
-                    for (let y = -this.height / 2; y < this.height / 2; y += 40) {
-                        if ((x + y) % 80 === 0) {
-                            ctx.fillRect(x, y, 20, 20);
-                        }
-                    }
-                }
-                ctx.restore();
-            }
-        }
-
-        class LootItem {
-            constructor(x, y, type, picnic) {
-                this.x = x;
-                this.y = y;
-                this.type = type;
-                this.picnic = picnic;
-                this.collected = false;
-            }
-
-            update() {
-                if (this.collected) return;
-
-                const player = Game.player;
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
-
-                if (dist < player.radius + 20) {
-                    if (player.cheeks.length < player.maxCheeks) {
-                        this.collected = true;
-                        player.cheeks.push(this.type);
-                        Sound.playChomp();
-                        Game.updateHUD();
-
-                        if (this.type.isGiga) {
-                            player.gigaMode = true;
-                            player.gigaTimer = 360; // 6 seconds
-                            Sound.playGiga();
-                            Game.showToast('🌟 GIGA SQUIRREL POWER-UP!');
-                        }
-
-                        // Increase Threat Level slightly
-                        Game.threatLevel = Math.min(100, Game.threatLevel + 4);
-                        Game.updateHUD();
-
-                        // Remove from items array
-                        const idx = Game.items.indexOf(this);
-                        if (idx > -1) Game.items.splice(idx, 1);
-                    } else {
-                        Game.showToast('⚠️ CHEEKS FULL! STASH AT OAK TREE!');
-                    }
-                }
-            }
-
-            draw() {
-                if (this.collected) return;
-                ctx.font = '28px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.type.emoji, this.x, this.y);
-            }
-        }
-
-        class Enemy {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.type = type; // 'ranger', 'pug', 'mower'
-                this.radius = type === 'mower' ? 30 : 22;
-                this.speed = type === 'pug' ? 4.2 : (type === 'ranger' ? 3.2 : 2.5);
-                this.stunned = 0;
-                this.angle = Math.random() * Math.PI * 2;
-            }
-
-            update() {
-                if (this.stunned > 0) {
-                    this.stunned--;
-                    return;
-                }
-
-                const player = Game.player;
-                const dist = Math.hypot(player.x - this.x, player.y - this.y);
-
-                if (this.type === 'ranger' || this.type === 'pug') {
-                    // Chase player if in range or threat level is high
-                    if (dist < 400 || Game.threatLevel > 50) {
-                        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-                        this.x += Math.cos(this.angle) * this.speed;
-                        this.y += Math.sin(this.angle) * this.speed;
-                    } else {
-                        // Wander
-                        this.x += Math.cos(this.angle) * (this.speed * 0.4);
-                        this.y += Math.sin(this.angle) * (this.speed * 0.4);
-                        if (Math.random() < 0.02) this.angle = Math.random() * Math.PI * 2;
-                    }
-                } else if (this.type === 'mower') {
-                    // Straight sweep line
-                    this.x += Math.cos(this.angle) * this.speed;
-                    this.y += Math.sin(this.angle) * this.speed;
-                    if (this.x < 50 || this.x > WORLD_SIZE - 50 || this.y < 50 || this.y > WORLD_SIZE - 50) {
-                        this.angle += Math.PI;
-                    }
-                }
-
-                // Collision with player
-                if (dist < player.radius + this.radius) {
-                    if (player.gigaMode) {
-                        // Destroy/Stun enemy when Giga
-                        this.stunned = 300;
-                        Game.showToast('💥 SMASHED ENEMY!');
-                    } else {
-                        const reason = this.type === 'ranger' ? "The Park Ranger netted you!" : (this.type === 'pug' ? "A chonky pug tackled you!" : "Run over by a lawnmower!");
-                        Game.gameOver(reason);
-                    }
-                }
-            }
-
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-
-                if (this.stunned > 0) {
-                    ctx.font = '20px sans-serif';
-                    ctx.fillText('💫', 0, -30);
-                }
-
-                ctx.font = `${this.radius * 1.8}px sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-
-                let emoji = '👮';
-                if (this.type === 'pug') emoji = '🐶';
-                if (this.type === 'mower') emoji = '🚜';
-
-                ctx.fillText(emoji, 0, 0);
-
-                ctx.restore();
-            }
-        }
-
-        class Projectile {
-            constructor(x, y, angle, item) {
-                this.x = x;
-                this.y = y;
-                this.angle = angle;
-                this.item = item;
-                this.speed = 12;
-                this.dead = false;
-                this.life = 60;
-            }
-
-            update() {
-                this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed;
-                this.life--;
-                if (this.life <= 0) this.dead = true;
-
-                // Check collision with enemies
-                Game.enemies.forEach(e => {
-                    const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                    if (dist < e.radius + 15) {
-                        e.stunned = 180; // Stun 3s
-                        this.dead = true;
-                        Game.showToast('🎯 DIRECT NUT HIT!');
-                    }
+                    ctx.strokeText(ct.text, 0, 0);
+                    ctx.fillText(ct.text, 0, 0);
+                    ctx.restore();
                 });
             }
 
-            draw() {
-                ctx.font = '24px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(this.item.emoji || '🌰', this.x, this.y);
-            }
-        }
-
-        class Particle {
-            constructor(x, y, color, size) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.size = size;
-                this.vx = (Math.random() - 0.5) * 6;
-                this.vy = (Math.random() - 0.5) * 6;
-                this.life = 30;
-                this.maxLife = 30;
-                this.dead = false;
-            }
-
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life--;
-                if (this.life <= 0) this.dead = true;
-            }
-
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.globalAlpha = this.life / this.maxLife;
+            particles.forEach(p => {
+                ctx.fillStyle = p.color || `rgba(255, 215, 0, ${p.life / p.maxLife})`;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.arc(p.x, p.y, p.size || (Math.random() * 4 + 2), 0, Math.PI*2);
                 ctx.fill();
-                ctx.globalAlpha = 1;
+            });
+
+            ctx.restore();
+
+            if (state === 'FLAPPY') {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 4;
+                ctx.font = 'bold 50px Arial';
+                ctx.textAlign = 'center';
+                ctx.strokeText(flappyScore, GAME_WIDTH/2, 100);
+                ctx.fillText(flappyScore, GAME_WIDTH/2, 100);
+            } else if (state === 'CATCHER') {
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 28px Arial';
+                
+                ctx.textAlign = 'left';
+                let scoreText = `Score: ${catcherScore}`;
+                ctx.strokeText(scoreText, 20, 40);
+                ctx.fillText(scoreText, 20, 40);
+                
+                ctx.textAlign = 'right';
+                let livesStr = "";
+                for(let i=0; i<catcherLives; i++) livesStr += "❤️";
+                ctx.strokeText(livesStr, GAME_WIDTH - 20, 40);
+                ctx.fillText(livesStr, GAME_WIDTH - 20, 40);
+            }
+
+            requestAnimationFrame(draw);
+            update();
+        }
+
+        function drawClouds() {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            clouds.forEach(c => {
+                ctx.save();
+                ctx.translate(c.x, c.y + cameraY * 0.5);
+                ctx.scale(c.scale, c.scale);
+                ctx.beginPath();
+                ctx.arc(0, 0, 30, 0, Math.PI * 2);
+                ctx.arc(25, -15, 30, 0, Math.PI * 2);
+                ctx.arc(50, 0, 30, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function drawRealisticPipe(x, y, height, isTop) {
+            let width = PIPE_WIDTH;
+            let grad = ctx.createLinearGradient(x, 0, x + width, 0);
+            grad.addColorStop(0, '#588c24');
+            grad.addColorStop(0.2, '#8fe33b');
+            grad.addColorStop(0.5, '#73bf2a');
+            grad.addColorStop(1, '#3e6617');
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y, width, height);
+
+            let capHeight = 30;
+            let capExpand = 6;
+            let capY = isTop ? y + height - capHeight : y;
+
+            let capGrad = ctx.createLinearGradient(x - capExpand, 0, x + width + capExpand, 0);
+            capGrad.addColorStop(0, '#588c24');
+            capGrad.addColorStop(0.2, '#a5f24e');
+            capGrad.addColorStop(0.5, '#73bf2a');
+            capGrad.addColorStop(1, '#3e6617');
+
+            ctx.fillStyle = capGrad;
+            ctx.fillRect(x - capExpand, capY, width + capExpand * 2, capHeight);
+
+            ctx.strokeStyle = '#22380c';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, width, height);
+            ctx.strokeRect(x - capExpand, capY, width + capExpand * 2, capHeight);
+        }
+
+        function drawRealisticBird(x, y, vy, frozen) {
+            ctx.save();
+            ctx.translate(x, y);
+            if (!frozen) ctx.rotate(Math.min(Math.PI / 4, Math.max(-Math.PI / 4, (vy * 0.1))));
+
+            let bodyGrad = ctx.createRadialGradient(-0, -5, 2, 0, 0, 18);
+            bodyGrad.addColorStop(0, '#ffec6e');
+            bodyGrad.addColorStop(1, '#e5a500');
+            ctx.fillStyle = bodyGrad;
+            ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(7, -6, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(9, -6, 2.5, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = '#ff4500';
+            ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(24, 4); ctx.lineTo(12, 10); ctx.closePath(); ctx.fill();
+
+            let wingY = Math.sin(time * 0.3) * 5;
+            ctx.fillStyle = '#f39c12';
+            ctx.beginPath(); ctx.ellipse(-6, 2 + wingY, 8, 5, Math.PI / 4, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawRealisticTaco(x, y, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.shadowBlur = 10; ctx.shadowColor = '#facc15';
+
+            ctx.fillStyle = '#eab308';
+            ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI); ctx.fill();
+            ctx.fillStyle = '#22c55e'; ctx.fillRect(-16, -2, 32, 4);
+            ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(-6, -2, 3, 0, Math.PI * 2); ctx.arc(4, -3, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawAcorn(x, y, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.fillStyle = '#b45309';
+            ctx.beginPath(); ctx.arc(0, 4, 12, 0, Math.PI); ctx.fill();
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(-12, -6, 24, 8);
+            ctx.fillRect(-2, -10, 4, 5);
+            ctx.restore();
+        }
+
+        function drawTacoPile(x, y) {
+            for (let i = -80; i <= 80; i += 20) {
+                drawRealisticTaco(x + i, y - Math.abs(i)*0.1, (i%40)*0.1);
+                drawAcorn(x + i*0.7, y - 12, (i%30)*0.2);
+            }
+            drawRealisticTaco(x, y - 25, 0);
+        }
+
+        function drawRealisticBomb(x, y, rotation) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#d97706'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.moveTo(0, -16); ctx.quadraticCurveTo(8, -22, 10, -26); ctx.stroke();
+            ctx.fillStyle = time % 4 < 2 ? '#ef4444' : '#facc15';
+            ctx.beginPath(); ctx.arc(10, -26, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawAlien(x, y, t) {
+            ctx.save();
+            ctx.translate(x, y);
+            let sway = Math.sin(t * 0.12) * 10;
+
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath(); ctx.ellipse(sway * 0.8, -90, 14, 20, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath(); ctx.ellipse(sway * 0.8 - 5, -92, 4, 7, -Math.PI / 6, 0, Math.PI * 2);
+            ctx.ellipse(sway * 0.8 + 5, -92, 4, 7, Math.PI / 6, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = '#16a34a'; ctx.fillRect(-6 + sway * 0.3, -70, 12, 40);
+            ctx.restore();
+        }
+
+        function drawSquirrel(x, y, scale = 1, t = 0) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            let tailWag = Math.sin(t * 0.2) * 0.2;
+
+            // Tail
+            ctx.fillStyle = '#b45309';
+            ctx.beginPath();
+            ctx.moveTo(-10, -10);
+            ctx.bezierCurveTo(-45 + tailWag*20, -30, -55 + tailWag*20, -75, -20, -80);
+            ctx.bezierCurveTo(-5, -85, 10, -60, -5, -40);
+            ctx.fill();
+
+            // Body
+            ctx.fillStyle = '#d97706';
+            ctx.beginPath(); ctx.ellipse(0, -25, 18, 22, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath(); ctx.ellipse(4, -22, 10, 15, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Head
+            ctx.fillStyle = '#d97706';
+            ctx.beginPath(); ctx.ellipse(5, -50, 15, 14, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath(); ctx.arc(14, -46, 8, 0, Math.PI * 2); ctx.fill();
+
+            // Ears
+            ctx.fillStyle = '#b45309';
+            ctx.beginPath(); ctx.ellipse(-2, -66, 4, 9, -0.2, 0, Math.PI * 2);
+            ctx.ellipse(8, -66, 4, 9, 0.2, 0, Math.PI * 2); ctx.fill();
+
+            // Eye & Nose
+            ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(10, -53, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.arc(18, -49, 3, 0, Math.PI * 2); ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawGreedyAlien(x, y, t) {
+            ctx.save();
+            ctx.translate(x, y);
+            let chew = (Math.random() - 0.5) * 6;
+            let mouthChomp = Math.abs(Math.sin(t * 0.4));
+
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath(); ctx.ellipse(chew, -50, 24, 28, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(chew, -95, 18, 24, 0, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(-7 + chew, -102, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(7 + chew, -102, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath(); ctx.arc(-7 + chew, -102, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(7 + chew, -102, 3, 0, Math.PI * 2); ctx.fill();
+
+            ctx.fillStyle = '#7f1d1d';
+            ctx.beginPath(); ctx.ellipse(chew, -85, 12, 12 + mouthChomp * 16, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawGreedySquirrel(x, y, t) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            let chew = Math.sin(t * 0.5) * 4;
+
+            // Huge puffed-out cheeks full of tacos & acorns!
+            ctx.fillStyle = '#d97706';
+            ctx.beginPath(); ctx.ellipse(0, -35, 22, 25, 0, 0, Math.PI * 2); ctx.fill();
+
+            // Head
+            ctx.beginPath(); ctx.ellipse(0, -65, 20, 18, 0, 0, Math.PI * 2); ctx.fill();
+
+            // GIANT puffed cheeks (ZHADNO!)
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath(); ctx.arc(-14, -60, 14 + chew, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(14, -60, 14 + chew, 0, Math.PI * 2); ctx.fill();
+
+            // Eyes crazy with taco greed
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(-8, -72, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(8, -72, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath(); ctx.arc(-8, -72, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(8, -72, 3, 0, Math.PI * 2); ctx.fill();
+
+            // Fast shoveling squirrel hands
+            drawAcorn(-5, -60, chew);
+            drawRealisticTaco(5, -60, -chew);
+
+            ctx.restore();
+        }
+
+        function spawnFoodCrumbs(x, y) {
+            const colors = ['#eab308', '#22c55e', '#b45309', '#facc15'];
+            for (let i = 0; i < 6; i++) {
+                particles.push({
+                    x: x + (Math.random() - 0.5) * 30,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8 - 2,
+                    life: 20,
+                    maxLife: 20,
+                    color: colors[Math.floor(Math.random() * colors.length)]
+                });
             }
         }
 
-        // Initialize Engine
-        window.onload = () => {
-            Game.init();
-            Game.draw();
-        };
+        function spawnPipe() {
+            let minHeight = 60;
+            let maxHeight = GAME_HEIGHT - PIPE_GAP - minHeight;
+            let topHeight = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+            pipes.push({ x: GAME_WIDTH, topHeight: topHeight, passed: false });
+        }
+
+        function triggerTransition() {
+            state = 'TRANSITION';
+            bird.frozen = true;
+            unusualPoop.x = bird.x; unusualPoop.y = bird.y; unusualPoop.vy = -4;
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 20, maxLife: 20, color: color
+                });
+            }
+        }
+
+        function interpolateColor(color1, color2, factor) {
+            let c1 = hexToRgb(color1); let c2 = hexToRgb(color2);
+            let r = Math.round(c1.r + factor * (c2.r - c1.r));
+            let g = Math.round(c1.g + factor * (c2.g - c1.g));
+            let b = Math.round(c1.b + factor * (c2.b - c1.b));
+            return `rgb(${r},${g},${b})`;
+        }
+
+        function hexToRgb(hex) {
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : {r:0, g:0, b:0};
+        }
+
+        requestAnimationFrame(draw);
     </script>
 </body>
 </html>
