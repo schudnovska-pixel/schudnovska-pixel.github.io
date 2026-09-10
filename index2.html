@@ -491,33 +491,34 @@
             });
         }
 
-        function drawRealisticPipe(x, y, width, height, isTop) {
-            let grad = ctx.createLinearGradient(x, 0, x + PIPE_WIDTH, 0);
+        function drawRealisticPipe(x, y, height, isTop) {
+            let width = PIPE_WIDTH;
+            let grad = ctx.createLinearGradient(x, 0, x + width, 0);
             grad.addColorStop(0, '#588c24');
             grad.addColorStop(0.2, '#8fe33b');
             grad.addColorStop(0.5, '#73bf2a');
             grad.addColorStop(1, '#3e6617');
 
             ctx.fillStyle = grad;
-            ctx.fillRect(x, y, PIPE_WIDTH, height);
+            ctx.fillRect(x, y, width, height);
 
             let capHeight = 30;
             let capExpand = 6;
             let capY = isTop ? y + height - capHeight : y;
 
-            let capGrad = ctx.createLinearGradient(x - capExpand, 0, x + PIPE_WIDTH + capExpand, 0);
+            let capGrad = ctx.createLinearGradient(x - capExpand, 0, x + width + capExpand, 0);
             capGrad.addColorStop(0, '#588c24');
             capGrad.addColorStop(0.2, '#a5f24e');
             capGrad.addColorStop(0.5, '#73bf2a');
             capGrad.addColorStop(1, '#3e6617');
 
             ctx.fillStyle = capGrad;
-            ctx.fillRect(x - capExpand, capY, PIPE_WIDTH + capExpand * 2, capHeight);
+            ctx.fillRect(x - capExpand, capY, width + capExpand * 2, capHeight);
 
             ctx.strokeStyle = '#22380c';
             ctx.lineWidth = 3;
-            ctx.strokeRect(x, y, PIPE_WIDTH, height);
-            ctx.strokeRect(x - capExpand, capY, PIPE_WIDTH + capExpand * 2, capHeight);
+            ctx.strokeRect(x, y, width, height);
+            ctx.strokeRect(x - capExpand, capY, width + capExpand * 2, capHeight);
         }
 
         function drawRealisticBird(x, y, vy, frozen) {
