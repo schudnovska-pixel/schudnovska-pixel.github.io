@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nutty Heist: Squirrel Park Panic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Fredoka One', 'Nunito', cursive, sans-serif;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a2f1a;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .hud-shadow {
+            text-shadow: 3px 3px 0px #000, -2px -2px 0px #000, 2px -2px 0px #000, -2px 2px 0px #000;
+        }
+        .btn-bounce {
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-bounce:active {
+            transform: scale(0.92);
+        }
+        .hat-card {
+            transition: all 0.2s ease;
+        }
+        .hat-card.selected {
+            border-color: #facc15;
+            background-color: rgba(250, 204, 21, 0.2);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="relative text-white flex flex-col justify-between">
+
+    <canvas id="gameCanvas" class="absolute inset-0 z-0"></canvas>
+
+    <div id="uiOverlay" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-6">
+        
+        <!-- Top HUD Bar -->
+        <div class="flex justify-between items-start w-full">
+            <!-- Left: Cheeks & Stash Score -->
+            <div class="flex flex-col gap-2">
+                <div class="bg-amber-900/80 backdrop-blur-md border-4 border-amber-600 rounded-2xl p-3 flex items-center gap-3 shadow-2xl pointer-events-auto">
+                    <span class="text-3xl md:text-4xl animate-bounce">🐿️</span>
+                    <div>
+                        <div class="text-xs text-amber-200 tracking-wider uppercase font-bold">Stashed Acorns</div>
+                        <div id="hudStashScore" class="text-2xl md:text-3xl text-amber-400 hud-shadow">0</div>
+                    </div>
+                </div>
+
+                <!-- Cheeks Capacity Gauge -->
+                <div class="bg-amber-950/80 border-2 border-amber-700 rounded-xl p-2 w-48 md:w-56 pointer-events-auto shadow-lg">
+                    <div class="flex justify-between text-xs font-bold mb-1 text-amber-200">
+                        <span>CHEEKS CAPACITY</span>
+                        <span id="cheekText">0 / 10</span>
+                    </div>
+                    <div class="w-full bg-amber-900/90 h-4 rounded-full overflow-hidden border border-amber-800">
+                        <div id="cheekBar" class="bg-gradient-to-r from-amber-400 to-orange-500 h-full w-0% transition-all duration-200"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Suspicion Heat & Giga Meter -->
+            <div class="flex flex-col items-end gap-2">
+                <div class="bg-red-950/80 border-4 border-red-600 rounded-2xl p-3 flex items-center gap-3 shadow-2xl pointer-events-auto text-right">
+                    <div>
+                        <div class="text-xs text-red-200 tracking-wider uppercase font-bold">Ranger Threat</div>
+                        <div id="threatText" class="text-xl md:text-2xl text-red-400 hud-shadow">CALM</div>
+                    </div>
+                    <span id="threatIcon" class="text-3xl md:text-4xl">😴</span>
+                </div>
+
+                <!-- Threat Meter Bar -->
+                <div class="bg-red-950/80 border-2 border-red-700 rounded-xl p-2 w-48 md:w-56 pointer-events-auto shadow-lg">
+                    <div class="w-full bg-red-950 h-3 rounded-full overflow-hidden border border-red-800">
+                        <div id="threatBar" class="bg-gradient-to-r from-yellow-500 via-orange-500 to-red-600 h-full w-0% transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Notifications Container -->
+        <div id="toastContainer" class="self-center flex flex-col items-center gap-2 pointer-events-none mb-20"></div>
+
+        <!-- Touch Controls for Mobile (Hidden on Desktop) -->
+        <div id="mobileControls" class="flex justify-between items-end w-full pointer-events-auto md:hidden pb-4">
+            <!-- Virtual Joystick Zone -->
+            <div id="joystickZone" class="w-32 h-32 bg-white/10 border-2 border-white/20 rounded-full relative flex items-center justify-center backdrop-blur-xs">
+                <div id="joystickKnob" class="w-14 h-14 bg-amber-500/80 border-2 border-amber-300 rounded-full shadow-lg absolute"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+                <button id="btnFart" class="btn-bounce bg-gradient-to-b from-amber-600 to-yellow-800 border-4 border-amber-300 text-white font-black rounded-2xl p-4 flex flex-col items-center justify-center shadow-2xl active:brightness-125">
+                    <span class="text-3xl">💨</span>
+                    <span class="text-xs mt-1">FART BOOST</span>
+                </button>
+                <button id="btnSpit" class="btn-bounce bg-gradient-to-b from-orange-500 to-red-700 border-4 border-orange-300 text-white font-black rounded-2xl p-4 flex flex-col items-center justify-center shadow-2xl active:brightness-125">
+                    <span class="text-3xl">🌰</span>
+                    <span class="text-xs mt-1">SPIT NUT</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="startModal" class="absolute inset-0 z-20 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-gradient-to-b from-amber-900 via-amber-950 to-stone-900 border-8 border-amber-600 rounded-3xl p-6 md:p-8 max-w-lg w-full text-center shadow-2xl relative overflow-hidden">
+            <!-- Decorative Banner -->
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl"></div>
+            <div class="text-6xl my-2 animate-bounce">🐿️👓</div>
+            <h1 class="text-4xl md:text-5xl font-black text-amber-400 hud-shadow tracking-wider uppercase mb-2">NUTTY HEIST</h1>
+            <p class="text-amber-200 text-sm md:text-base font-bold mb-6">PARK PICNIC CHAOS</p>
+
+            <div class="bg-black/40 border border-amber-700/50 rounded-2xl p-4 text-left text-xs md:text-sm text-amber-100 space-y-2 mb-6">
+                <p>📍 <strong>OBJECTIVE:</strong> Raid picnic blankets, stuff your cheeks with loot (Acorns 🌰, Pizza 🍕, Donuts 🍩), and stash them back at the Big Oak Tree 🌳!</p>
+                <p>⚠️ <strong>BEWARE:</strong> Angry Park Rangers 👮, Chonky Dogs 🐶, and Lawnmowers 🚜 will hunt you!</p>
+                <p>🎮 <strong>DESKTOP CONTROLS:</strong> Move with <kbd class="bg-amber-800 px-1 rounded">WASD</kbd> or <kbd class="bg-amber-800 px-1 rounded">Arrows</kbd>. Press <kbd class="bg-amber-800 px-1 rounded">SPACE</kbd> for <strong>Fart Boost</strong> 💨 & <kbd class="bg-amber-800 px-1 rounded">E</kbd> or <kbd class="bg-amber-800 px-1 rounded">CLICK</kbd> to <strong>Spit Nut</strong> 🌰!</p>
+            </div>
+
+            <!-- Hat Customizer Selector -->
+            <div class="mb-6">
+                <div class="text-xs font-bold text-amber-300 uppercase mb-2">Select Secret Agent Hat:</div>
+                <div class="grid grid-cols-4 gap-2" id="hatSelector">
+                    <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <button onclick="Game.start()" class="btn-bounce w-full py-4 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 border-4 border-amber-300 text-stone-950 font-black text-2xl md:text-3xl rounded-2xl shadow-2xl hover:brightness-110 active:scale-95 uppercase tracking-wide">
+                START RAID 🌰!
+            </button>
+        </div>
+    </div>
+
+    <div id="gameOverModal" class="absolute inset-0 z-20 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="bg-gradient-to-b from-stone-900 via-stone-950 to-black border-8 border-red-600 rounded-3xl p-6 md:p-8 max-w-md w-full text-center shadow-2xl">
+            <div class="text-6xl my-2">💥🐿️💨</div>
+            <h2 id="goTitle" class="text-3xl md:text-4xl font-black text-red-500 hud-shadow mb-2">BROWNED OUT!</h2>
+            <p id="goReason" class="text-stone-300 text-sm mb-6">The Park Ranger put you in squirrel jail!</p>
+
+            <div class="bg-stone-900/90 border border-stone-800 rounded-2xl p-4 mb-6">
+                <div class="flex justify-between items-center py-1 border-b border-stone-800">
+                    <span class="text-stone-400 text-sm">Total Stashed Loot:</span>
+                    <span id="goScore" class="text-amber-400 font-bold text-xl">0</span>
+                </div>
+                <div class="flex justify-between items-center py-1 border-b border-stone-800">
+                    <span class="text-stone-400 text-sm">Picnics Raided:</span>
+                    <span id="goPicnics" class="text-amber-400 font-bold text-xl">0</span>
+                </div>
+                <div class="flex justify-between items-center py-1">
+                    <span class="text-stone-400 text-sm">Fart Boosts Used:</span>
+                    <span id="goFarts" class="text-amber-400 font-bold text-xl">0</span>
+                </div>
+            </div>
+
+            <button onclick="Game.start()" class="btn-bounce w-full py-4 bg-gradient-to-r from-red-600 to-amber-600 border-4 border-orange-400 text-white font-black text-2xl rounded-2xl shadow-2xl hover:brightness-110 uppercase">
+                TRY AGAIN 🔄
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const Sound = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playSqueak() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, this.ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.12);
+            },
+            playChomp() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            },
+            playFart() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.25);
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            },
+            playStash() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [400, 550, 700, 880].forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+                    gain.gain.setValueAtTime(0.25, now + idx * 0.06);
+                    gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.06 + 0.1);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.06);
+                    osc.stop(now + idx * 0.06 + 0.1);
+                });
+            },
+            playSpit() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+            playGiga() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.5);
+            }
+        };
+
+        const Hats = [
+            { id: 'sunglasses', icon: '🕶️', name: 'Agent Shades' },
+            { id: 'viking', icon: '🪖', name: 'Viking Nut' },
+            { id: 'propeller', icon: '🚁', name: 'Propeller Beanie' },
+            { id: 'crown', icon: '👑', name: 'Acorn King' }
+        ];
+        let selectedHat = 'sunglasses';
+
+        function renderHatSelector() {
+            const container = document.getElementById('hatSelector');
+            container.innerHTML = Hats.map(hat => `
+                <div onclick="selectHat('${hat.id}')" class="hat-card ${selectedHat === hat.id ? 'selected' : ''} bg-black/40 border-2 border-amber-800 rounded-xl p-2 cursor-pointer flex flex-col items-center justify-center pointer-events-auto hover:bg-amber-900/40">
+                    <span class="text-2xl">${hat.icon}</span>
+                    <span class="text-[10px] text-amber-200 mt-1 font-bold truncate">${hat.name}</span>
+                </div>
+            `).join('');
+        }
+
+        function selectHat(id) {
+            selectedHat = id;
+            renderHatSelector();
+            Sound.init();
+            Sound.playSqueak();
+        }
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const WORLD_SIZE = 2600;
+
+        const Game = {
+            active: false,
+            time: 0,
+            camera: { x: 0, y: 0 },
+            keys: {},
+            touchVector: { x: 0, y: 0 },
+            
+            // Stats
+            stashedAcorns: 0,
+            picnicsRaided: 0,
+            fartsUsed: 0,
+            threatLevel: 0, // 0 to 100
+
+            // Entities
+            player: null,
+            treehouse: { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, radius: 120 },
+            picnics: [],
+            items: [],
+            enemies: [],
+            projectiles: [],
+            particles: [],
+
+            init() {
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                this.setupControls();
+                renderHatSelector();
+            },
+
+            resize() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            },
+
+            setupControls() {
+                window.addEventListener('keydown', e => {
+                    this.keys[e.code] = true;
+                    if (e.code === 'Space' && this.active) {
+                        e.preventDefault();
+                        this.player.fartBoost();
+                    }
+                    if ((e.code === 'KeyE' || e.code === 'KeyF') && this.active) {
+                        e.preventDefault();
+                        this.player.spitNut();
+                    }
+                });
+                window.addEventListener('keyup', e => {
+                    this.keys[e.code] = false;
+                });
+
+                // Mouse click to spit nut
+                canvas.addEventListener('mousedown', e => {
+                    if (this.active && e.button === 0) {
+                        this.player.spitNut();
+                    }
+                });
+
+                // Virtual Joystick Setup for Mobile
+                const joyZone = document.getElementById('joystickZone');
+                const joyKnob = document.getElementById('joystickKnob');
+                let joyTouchId = null;
+                let joyCenter = { x: 0, y: 0 };
+
+                joyZone.addEventListener('touchstart', e => {
+                    if (!this.active) return;
+                    const touch = e.changedTouches[0];
+                    joyTouchId = touch.identifier;
+                    const rect = joyZone.getBoundingClientRect();
+                    joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+                    this.updateJoystick(touch);
+                }, { passive: false });
+
+                window.addEventListener('touchmove', e => {
+                    if (joyTouchId === null) return;
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === joyTouchId) {
+                            this.updateJoystick(e.changedTouches[i]);
+                            break;
+                        }
+                    }
+                }, { passive: false });
+
+                const endTouch = e => {
+                    for (let i = 0; i < e.changedTouches.length; i++) {
+                        if (e.changedTouches[i].identifier === joyTouchId) {
+                            joyTouchId = null;
+                            this.touchVector = { x: 0, y: 0 };
+                            joyKnob.style.transform = `translate(0px, 0px)`;
+                            break;
+                        }
+                    }
+                };
+                window.addEventListener('touchend', endTouch);
+                window.addEventListener('touchcancel', endTouch);
+
+                // Action Buttons
+                document.getElementById('btnFart').addEventListener('click', () => {
+                    if (this.active) this.player.fartBoost();
+                });
+                document.getElementById('btnSpit').addEventListener('click', () => {
+                    if (this.active) this.player.spitNut();
+                });
+            },
+
+            updateJoystick(touch) {
+                const maxRadius = 45;
+                const dx = touch.clientX - joyCenter.x;
+                const dy = touch.clientY - joyCenter.y;
+                const dist = Math.hypot(dx, dy);
+                const angle = Math.atan2(dy, dx);
+
+                const clampedDist = Math.min(dist, maxRadius);
+                const knobX = Math.cos(angle) * clampedDist;
+                const knobY = Math.sin(angle) * clampedDist;
+
+                document.getElementById('joystickKnob').style.transform = `translate(${knobX}px, ${knobY}px)`;
+                this.touchVector = { x: Math.cos(angle) * (clampedDist / maxRadius), y: Math.sin(angle) * (clampedDist / maxRadius) };
+            },
+
+            start() {
+                Sound.init();
+                Sound.playSqueak();
+
+                document.getElementById('startModal').classList.add('hidden');
+                document.getElementById('gameOverModal').classList.add('hidden');
+
+                this.stashedAcorns = 0;
+                this.picnicsRaided = 0;
+                this.fartsUsed = 0;
+                this.threatLevel = 0;
+                this.time = 0;
+
+                // Create Player
+                this.player = new Player(WORLD_SIZE / 2, WORLD_SIZE / 2 + 200);
+
+                // Generate Park World Objects
+                this.generateParkWorld();
+
+                this.active = true;
+                this.updateHUD();
+                this.showToast('🌳 STASH YOUR LOOT AT THE BIG OAK TREE!');
+            },
+
+            generateParkWorld() {
+                this.picnics = [];
+                this.items = [];
+                this.enemies = [];
+                this.projectiles = [];
+                this.particles = [];
+
+                // Spawn Picnic Blankets scattered around
+                const picnicCount = 12;
+                for (let i = 0; i < picnicCount; i++) {
+                    let px, py, valid = false;
+                    while (!valid) {
+                        px = Math.random() * (WORLD_SIZE - 400) + 200;
+                        py = Math.random() * (WORLD_SIZE - 400) + 200;
+                        const distToTree = Math.hypot(px - this.treehouse.x, py - this.treehouse.y);
+                        if (distToTree > 300) valid = true;
+                    }
+                    this.picnics.push(new Picnic(px, py));
+                }
+
+                // Initial Enemies
+                this.spawnEnemy('ranger');
+                this.spawnEnemy('ranger');
+                this.spawnEnemy('pug');
+                this.spawnEnemy('pug');
+                this.spawnEnemy('mower');
+            },
+
+            spawnEnemy(type) {
+                let x = Math.random() * WORLD_SIZE;
+                let y = Math.random() * WORLD_SIZE;
+                this.enemies.push(new Enemy(x, y, type));
+            },
+
+            update() {
+                if (!this.active) return;
+                this.time++;
+
+                this.player.update();
+
+                // Camera follow player
+                this.camera.x = this.player.x - canvas.width / 2;
+                this.camera.y = this.player.y - canvas.height / 2;
+
+                // Update Items
+                this.items.forEach(item => item.update());
+
+                // Update Enemies
+                this.enemies.forEach(enemy => enemy.update());
+
+                // Update Projectiles
+                for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                    let p = this.projectiles[i];
+                    p.update();
+                    if (p.dead) this.projectiles.splice(i, 1);
+                }
+
+                // Update Particles
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    let pt = this.particles[i];
+                    pt.update();
+                    if (pt.dead) this.particles.splice(i, 1);
+                }
+
+                // Check Treehouse Stash Interaction
+                const distToTree = Math.hypot(this.player.x - this.treehouse.x, this.player.y - this.treehouse.y);
+                if (distToTree < this.treehouse.radius + this.player.radius && this.player.cheeks.length > 0) {
+                    let scoreAdded = 0;
+                    this.player.cheeks.forEach(item => {
+                        scoreAdded += item.value;
+                    });
+                    this.stashedAcorns += scoreAdded;
+                    this.player.cheeks = [];
+                    Sound.playStash();
+                    this.showToast(`✨ STASHED +${scoreAdded} LOOT!`);
+                    
+                    // Reduce threat level on successful stash
+                    this.threatLevel = Math.max(0, this.threatLevel - 15);
+                    this.updateHUD();
+
+                    // Spawn golden particles around tree
+                    for (let i = 0; i < 30; i++) {
+                        this.particles.push(new Particle(this.treehouse.x, this.treehouse.y, '#facc15', 8));
+                    }
+                }
+
+                // Threat Decay / Spawn Enemies based on threat
+                if (this.time % 300 === 0 && this.threatLevel < 100) {
+                    this.threatLevel = Math.min(100, this.threatLevel + 2);
+                    this.updateHUD();
+                }
+
+                if (this.time % 600 === 0 && this.enemies.length < 15) {
+                    this.spawnEnemy(Math.random() > 0.5 ? 'ranger' : 'pug');
+                }
+            },
+
+            showToast(text) {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = "bg-amber-500 text-stone-950 font-black px-4 py-2 rounded-2xl border-2 border-amber-200 shadow-2xl text-sm md:text-base animate-bounce";
+                toast.innerText = text;
+                container.appendChild(toast);
+                setTimeout(() => toast.remove(), 2500);
+            },
+
+            updateHUD() {
+                document.getElementById('hudStashScore').innerText = this.stashedAcorns;
+                document.getElementById('cheekText').innerText = `${this.player.cheeks.length} / ${this.player.maxCheeks}`;
+                const cheekPct = (this.player.cheeks.length / this.player.maxCheeks) * 100;
+                document.getElementById('cheekBar').style.width = `${cheekPct}%`;
+
+                document.getElementById('threatBar').style.width = `${this.threatLevel}%`;
+                
+                let icon = '😴';
+                let text = 'CALM';
+                if (this.threatLevel > 75) { icon = '🚨'; text = 'SWAT RANGERS!'; }
+                else if (this.threatLevel > 40) { icon = '🐕'; text = 'HIGH ALERT'; }
+                else if (this.threatLevel > 15) { icon = '👀'; text = 'SUSPICIOUS'; }
+                
+                document.getElementById('threatIcon').innerText = icon;
+                document.getElementById('threatText').innerText = text;
+            },
+
+            gameOver(reason) {
+                this.active = false;
+                Sound.playFart();
+                document.getElementById('goTitle').innerText = "CAUGHT RED-HANDED!";
+                document.getElementById('goReason').innerText = reason;
+                document.getElementById('goScore').innerText = this.stashedAcorns;
+                document.getElementById('goPicnics').innerText = this.picnicsRaided;
+                document.getElementById('goFarts').innerText = this.fartsUsed;
+                document.getElementById('gameOverModal').classList.remove('hidden');
+            },
+
+            draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                ctx.save();
+                ctx.translate(-this.camera.x, -this.camera.y);
+
+                // Draw Park Grass Background Grid
+                ctx.fillStyle = '#2d5a27';
+                ctx.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+                // Grass Blades / Flower Details
+                ctx.fillStyle = '#24481f';
+                for (let x = 0; x < WORLD_SIZE; x += 120) {
+                    for (let y = 0; y < WORLD_SIZE; y += 120) {
+                        ctx.beginPath();
+                        ctx.arc(x + 20, y + 20, 15, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                // World Boundary Fence
+                ctx.strokeStyle = '#b45309';
+                ctx.lineWidth = 12;
+                ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+                // Draw Treehouse Safezone
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.arc(this.treehouse.x + 10, this.treehouse.y + 15, this.treehouse.radius + 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Big Oak Tree
+                ctx.fillStyle = '#15803d';
+                ctx.beginPath();
+                ctx.arc(this.treehouse.x, this.treehouse.y, this.treehouse.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#78350f';
+                ctx.beginPath();
+                ctx.arc(this.treehouse.x, this.treehouse.y, 40, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#facc15';
+                ctx.font = 'bold 36px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🌳 SAFE', this.treehouse.x, this.treehouse.y);
+
+                // Draw Picnics
+                this.picnics.forEach(p => p.draw());
+
+                // Draw Items
+                this.items.forEach(i => i.draw());
+
+                // Draw Enemies
+                this.enemies.forEach(e => e.draw());
+
+                // Draw Projectiles
+                this.projectiles.forEach(p => p.draw());
+
+                // Draw Player
+                this.player.draw();
+
+                // Draw Particles
+                this.particles.forEach(p => p.draw());
+
+                ctx.restore();
+
+                requestAnimationFrame(() => {
+                    Game.update();
+                    Game.draw();
+                });
+            }
+        };
+
+        class Player {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 22;
+                this.angle = 0;
+                this.speed = 5.5;
+                this.cheeks = [];
+                this.maxCheeks = 10;
+                this.fartCooldown = 0;
+                this.gigaMode = false;
+                this.gigaTimer = 0;
+            }
+
+            update() {
+                let dx = 0;
+                let dy = 0;
+
+                // Keyboard
+                if (Game.keys['KeyW'] || Game.keys['ArrowUp']) dy -= 1;
+                if (Game.keys['KeyS'] || Game.keys['ArrowDown']) dy += 1;
+                if (Game.keys['KeyA'] || Game.keys['ArrowLeft']) dx -= 1;
+                if (Game.keys['KeyD'] || Game.keys['ArrowRight']) dx += 1;
+
+                // Joystick override
+                if (Game.touchVector.x !== 0 || Game.touchVector.y !== 0) {
+                    dx = Game.touchVector.x;
+                    dy = Game.touchVector.y;
+                }
+
+                // Speed penalty when cheeks are stuffed
+                const cheekWeight = (this.cheeks.length / this.maxCheeks) * 0.35;
+                let currentSpeed = this.speed * (1 - cheekWeight);
+                if (this.gigaMode) currentSpeed *= 1.6;
+
+                if (dx !== 0 || dy !== 0) {
+                    const norm = Math.hypot(dx, dy);
+                    this.x += (dx / (norm || 1)) * currentSpeed;
+                    this.y += (dy / (norm || 1)) * currentSpeed;
+                    this.angle = Math.atan2(dy, dx);
+                }
+
+                // World bounds
+                this.x = Math.max(30, Math.min(WORLD_SIZE - 30, this.x));
+                this.y = Math.max(30, Math.min(WORLD_SIZE - 30, this.y));
+
+                // Cooldowns
+                if (this.fartCooldown > 0) this.fartCooldown--;
+
+                if (this.gigaMode) {
+                    this.gigaTimer--;
+                    if (this.gigaTimer <= 0) this.gigaMode = false;
+                }
+            }
+
+            fartBoost() {
+                if (this.fartCooldown > 0) return;
+                this.fartCooldown = 90; // 1.5s
+                Game.fartsUsed++;
+                Sound.playFart();
+
+                // Fart thrust vector (opposite to facing direction)
+                const thrustX = Math.cos(this.angle) * 160;
+                const thrustY = Math.sin(this.angle) * 160;
+                this.x += thrustX;
+                this.y += thrustY;
+
+                // Fart Cloud Particles & Stun Enemies
+                for (let i = 0; i < 25; i++) {
+                    Game.particles.push(new Particle(
+                        this.x - Math.cos(this.angle) * 30,
+                        this.y - Math.sin(this.angle) * 30,
+                        '#854d0e',
+                        12
+                    ));
+                }
+
+                // Stun nearby enemies
+                Game.enemies.forEach(e => {
+                    const d = Math.hypot(e.x - this.x, e.y - this.y);
+                    if (d < 150) e.stunned = 120; // Stun 2s
+                });
+            }
+
+            spitNut() {
+                if (this.cheeks.length === 0) {
+                    Game.showToast('⚠️ NO ACORNS IN CHEEKS TO SPIT!');
+                    return;
+                }
+                const nut = this.cheeks.pop();
+                Game.updateHUD();
+                Sound.playSpit();
+
+                Game.projectiles.push(new Projectile(this.x, this.y, this.angle, nut));
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.gigaMode) {
+                    ctx.scale(1.8, 1.8);
+                    ctx.shadowBlur = 25;
+                    ctx.shadowColor = '#facc15';
+                }
+
+                ctx.rotate(this.angle);
+
+                // Fluffy Tail
+                ctx.fillStyle = '#b45309';
+                ctx.beginPath();
+                ctx.ellipse(-25, 0, 18, 12, Math.PI / 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Main Body
+                ctx.fillStyle = '#d97706';
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Puffed Cheeks (Expands with stuffed loot!)
+                const cheekScale = 1 + (this.cheeks.length / this.maxCheeks) * 0.8;
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(8, -12 * cheekScale, 8 * cheekScale, 0, Math.PI * 2);
+                ctx.arc(8, 12 * cheekScale, 8 * cheekScale, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(10, -6, 3, 0, Math.PI * 2);
+                ctx.arc(10, 6, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw Selected Hat
+                const hatObj = Hats.find(h => h.id === selectedHat);
+                if (hatObj) {
+                    ctx.font = '22px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(hatObj.icon, 2, -14);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Picnic {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 160;
+                this.height = 120;
+                this.color = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6'][Math.floor(Math.random() * 4)];
+                this.spawnLoot();
+            }
+
+            spawnLoot() {
+                const lootTypes = [
+                    { name: 'Acorn', emoji: '🌰', value: 10 },
+                    { name: 'Pizza', emoji: '🍕', value: 30 },
+                    { name: 'Donut', emoji: '🍩', value: 25 },
+                    { name: 'Taco', emoji: '🌮', value: 35 },
+                    { name: 'Rainbow Golden Acorn', emoji: '🌟', value: 100, isGiga: true }
+                ];
+
+                for (let i = 0; i < 4; i++) {
+                    const isGolden = Math.random() < 0.08;
+                    const loot = isGolden ? lootTypes[4] : lootTypes[Math.floor(Math.random() * 4)];
+                    const ix = this.x + (Math.random() - 0.5) * (this.width - 30);
+                    const iy = this.y + (Math.random() - 0.5) * (this.height - 30);
+                    Game.items.push(new LootItem(ix, iy, loot, this));
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Checkerboard Blanket
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+
+                ctx.fillStyle = '#ffffff';
+                for (let x = -this.width / 2; x < this.width / 2; x += 40) {
+                    for (let y = -this.height / 2; y < this.height / 2; y += 40) {
+                        if ((x + y) % 80 === 0) {
+                            ctx.fillRect(x, y, 20, 20);
+                        }
+                    }
+                }
+                ctx.restore();
+            }
+        }
+
+        class LootItem {
+            constructor(x, y, type, picnic) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.picnic = picnic;
+                this.collected = false;
+            }
+
+            update() {
+                if (this.collected) return;
+
+                const player = Game.player;
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+
+                if (dist < player.radius + 20) {
+                    if (player.cheeks.length < player.maxCheeks) {
+                        this.collected = true;
+                        player.cheeks.push(this.type);
+                        Sound.playChomp();
+                        Game.updateHUD();
+
+                        if (this.type.isGiga) {
+                            player.gigaMode = true;
+                            player.gigaTimer = 360; // 6 seconds
+                            Sound.playGiga();
+                            Game.showToast('🌟 GIGA SQUIRREL POWER-UP!');
+                        }
+
+                        // Increase Threat Level slightly
+                        Game.threatLevel = Math.min(100, Game.threatLevel + 4);
+                        Game.updateHUD();
+
+                        // Remove from items array
+                        const idx = Game.items.indexOf(this);
+                        if (idx > -1) Game.items.splice(idx, 1);
+                    } else {
+                        Game.showToast('⚠️ CHEEKS FULL! STASH AT OAK TREE!');
+                    }
+                }
+            }
+
+            draw() {
+                if (this.collected) return;
+                ctx.font = '28px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.type.emoji, this.x, this.y);
+            }
+        }
+
+        class Enemy {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'ranger', 'pug', 'mower'
+                this.radius = type === 'mower' ? 30 : 22;
+                this.speed = type === 'pug' ? 4.2 : (type === 'ranger' ? 3.2 : 2.5);
+                this.stunned = 0;
+                this.angle = Math.random() * Math.PI * 2;
+            }
+
+            update() {
+                if (this.stunned > 0) {
+                    this.stunned--;
+                    return;
+                }
+
+                const player = Game.player;
+                const dist = Math.hypot(player.x - this.x, player.y - this.y);
+
+                if (this.type === 'ranger' || this.type === 'pug') {
+                    // Chase player if in range or threat level is high
+                    if (dist < 400 || Game.threatLevel > 50) {
+                        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+                        this.x += Math.cos(this.angle) * this.speed;
+                        this.y += Math.sin(this.angle) * this.speed;
+                    } else {
+                        // Wander
+                        this.x += Math.cos(this.angle) * (this.speed * 0.4);
+                        this.y += Math.sin(this.angle) * (this.speed * 0.4);
+                        if (Math.random() < 0.02) this.angle = Math.random() * Math.PI * 2;
+                    }
+                } else if (this.type === 'mower') {
+                    // Straight sweep line
+                    this.x += Math.cos(this.angle) * this.speed;
+                    this.y += Math.sin(this.angle) * this.speed;
+                    if (this.x < 50 || this.x > WORLD_SIZE - 50 || this.y < 50 || this.y > WORLD_SIZE - 50) {
+                        this.angle += Math.PI;
+                    }
+                }
+
+                // Collision with player
+                if (dist < player.radius + this.radius) {
+                    if (player.gigaMode) {
+                        // Destroy/Stun enemy when Giga
+                        this.stunned = 300;
+                        Game.showToast('💥 SMASHED ENEMY!');
+                    } else {
+                        const reason = this.type === 'ranger' ? "The Park Ranger netted you!" : (this.type === 'pug' ? "A chonky pug tackled you!" : "Run over by a lawnmower!");
+                        Game.gameOver(reason);
+                    }
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.stunned > 0) {
+                    ctx.font = '20px sans-serif';
+                    ctx.fillText('💫', 0, -30);
+                }
+
+                ctx.font = `${this.radius * 1.8}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                let emoji = '👮';
+                if (this.type === 'pug') emoji = '🐶';
+                if (this.type === 'mower') emoji = '🚜';
+
+                ctx.fillText(emoji, 0, 0);
+
+                ctx.restore();
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, angle, item) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.item = item;
+                this.speed = 12;
+                this.dead = false;
+                this.life = 60;
+            }
+
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                this.life--;
+                if (this.life <= 0) this.dead = true;
+
+                // Check collision with enemies
+                Game.enemies.forEach(e => {
+                    const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                    if (dist < e.radius + 15) {
+                        e.stunned = 180; // Stun 3s
+                        this.dead = true;
+                        Game.showToast('🎯 DIRECT NUT HIT!');
+                    }
+                });
+            }
+
+            draw() {
+                ctx.font = '24px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.item.emoji || '🌰', this.x, this.y);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, size) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = size;
+                this.vx = (Math.random() - 0.5) * 6;
+                this.vy = (Math.random() - 0.5) * 6;
+                this.life = 30;
+                this.maxLife = 30;
+                this.dead = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+                if (this.life <= 0) this.dead = true;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.life / this.maxLife;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // Initialize Engine
+        window.onload = () => {
+            Game.init();
+            Game.draw();
+        };
+    </script>
+</body>
+</html>
